@@ -63,12 +63,12 @@ export type SiteConfig = {
 };
 
 const siteConfig: SiteConfig = {
-    website: 'https://appdul.id',
-    title: 'Appdul',
-    description: 'Appdul - Your Swiss Knife for IT Solutions',
+    website: 'https://taufiqtab.github.io',
+    title: 'Opik',
+    description: 'Opik - Your Swiss Knife for IT Solutions',
     image: {
         src: '/space-ahead-preview.jpeg',
-        alt: 'Appdul.'
+        alt: 'Opik.'
     },
     headerNavLinks: [
         {
@@ -126,7 +126,7 @@ const siteConfig: SiteConfig = {
     ],
     hero: {
         eyebrowText: 'Your Swiss Knife for IT Solutions',
-        title: 'Appdul  🚀',
+        title: 'Opik  🚀',
         text: "Passionate in Programming, Game Development, AR, VR , Design Graphic, Video Editing, 3D Modeling, Animation, IoT",
         image: {
             src: '/assets/images/opik-fly-illustration.png',
