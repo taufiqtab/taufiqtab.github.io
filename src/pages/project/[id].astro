@@ -33,24 +33,57 @@ type Props = {
 };
 
 const { post, prevPost, nextPost } = Astro.props;
-const { title, pubDate, author, tags = [], image } = post.data;
+const { title, description, pubDate, author, tags = [], image, period, company, platform, award } =
+  post.data;
+const facts = [
+  { label: "Tahun", value: period },
+  { label: "Perusahaan", value: company },
+  { label: "Platform", value: platform },
+].filter((fact) => fact.value);
 const { Content } = await render(post);
 ---
 
 <MainLayout pageTitle={siteConfig.title + " | " + title}>
   <div class="page-content">
     <h1 class="sigmar-ff text-center text-balance">{title}</h1>
-    <p class="leading-8 text-center kanit-regular text-balance text-xs">
-      by 🧑‍🚀 <span class="kanit-bold">{author}</span> on <span class="kanit-bold"
-        >{new Date(pubDate).toDateString()}</span
-      >
-    </p>
+    {
+      facts.length ? (
+        <>
+          <p class="kanit-light text-center text-balance opacity-80 mb-4!">
+            {description}
+          </p>
+          <div class="flex flex-wrap items-stretch justify-center gap-3 mb-2">
+            {facts.map((fact) => (
+              <div class="project-fact">
+                <span class="text-[10px] uppercase tracking-widest opacity-60">
+                  {fact.label}
+                </span>
+                <span class="kanit-bold text-sm">{fact.value}</span>
+              </div>
+            ))}
+            {award && (
+              <div class="project-fact border-amber-500/60! bg-amber-500/10">
+                <span class="text-[10px] uppercase tracking-widest opacity-60">
+                  Penghargaan
+                </span>
+                <span class="kanit-bold text-sm">🏆 {award}</span>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <p class="leading-8 text-center kanit-regular text-balance text-xs">
+          by 🧑‍🚀 <span class="kanit-bold">{author}</span> on{" "}
+          <span class="kanit-bold">{new Date(pubDate).toDateString()}</span>
+        </p>
+      )
+    }
     {
       image && image.url && (
         <Image class="mb-8 my-6" src={image?.url} alt={image?.alt || ""} />
       )
     }
-    <div class="font-light text-left">
+    <div class="project-body font-light text-left max-w-3xl mx-auto">
       <Content />
     </div>
     <p class="kanit-regular text-center text-balance text-xs">
@@ -85,3 +118,51 @@ const { Content } = await render(post);
     </div>
   </div>
 </MainLayout>
+
+<style>
+  @reference "../../styles/global.css";
+
+  .project-fact {
+    @apply flex min-w-28 flex-col items-center rounded-2xl border border-gray-500/30 px-4 py-2;
+  }
+  .project-body :global(h2) {
+    @apply font-bold pt-8 pb-3 text-xl sm:text-2xl;
+  }
+  .project-body :global(h3) {
+    @apply pt-4 pb-2 text-lg font-semibold;
+  }
+  .project-body :global(ul) {
+    @apply mb-6 list-disc space-y-2 pl-6;
+  }
+  .project-body :global(ol) {
+    @apply mb-6 list-decimal space-y-2 pl-6;
+  }
+  .project-body :global(li::marker) {
+    @apply text-space-red dark:text-space-yellow;
+  }
+  .project-body :global(strong) {
+    @apply font-semibold;
+  }
+  .project-body :global(blockquote) {
+    @apply my-6 rounded-2xl border-l-4 border-sky-500/60 bg-sky-500/10 px-5 py-4;
+  }
+  .project-body :global(blockquote p) {
+    @apply mb-0;
+  }
+  .project-body :global(img) {
+    @apply my-6 w-full rounded-2xl border border-gray-500/30 shadow-lg;
+  }
+  .project-body :global(table) {
+    @apply mb-6 w-full border-collapse text-sm;
+  }
+  .project-body :global(th),
+  .project-body :global(td) {
+    @apply border border-gray-500/30 px-3 py-2 text-left;
+  }
+  .project-body :global(th) {
+    @apply bg-gray-500/10 font-semibold;
+  }
+  .project-body :global(code) {
+    @apply rounded bg-gray-500/15 px-1.5 py-0.5 text-sm;
+  }
+</style>

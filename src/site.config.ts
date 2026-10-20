@@ -171,7 +171,7 @@ const siteConfig: SiteConfig = {
     //     text: 'One update per week. All the latest stories in your inbox.',
     //     formUrl: '#'
     // },
-    postsPerPage: 5,
+    postsPerPage: 10,
     recentPostLimit: 3
 };
 

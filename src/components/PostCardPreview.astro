@@ -6,7 +6,7 @@ import { withBase } from "../utils/helpers";
 
 type Props = { post: CollectionEntry<"blogs"> };
 const { post } = Astro.props;
-const { title, pubDate, description, image } = post.data;
+const { title, pubDate, description, image, period, company } = post.data;
 ---
 
 <a class="font-bold" href={"/project/" + post.id}>
@@ -26,7 +26,16 @@ const { title, pubDate, description, image } = post.data;
     }
     <div class="flex flex-col max-w-fit">
       <h2 class="mb-1">{title}</h2>
-      <FormattedDate date={new Date(pubDate)} />
+      {
+        period ? (
+          <span class="text-xs">
+            {period}
+            {company && <> · {company}</>}
+          </span>
+        ) : (
+          <FormattedDate date={new Date(pubDate)} />
+        )
+      }
       {
         description && (
           <p class="font-light text-base text-balance">{description}</p>

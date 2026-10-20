@@ -10,6 +10,11 @@ const blogsCollection = defineCollection({
         author: z.string().optional(),
         tags: z.array(z.string()).optional(),
         draft: z.boolean().optional(),
+        // optional portfolio metadata shown on the project page
+        period: z.string().optional(),
+        company: z.string().optional(),
+        platform: z.string().optional(),
+        award: z.string().optional(),
         image: z.object({
             url: image(),
             alt: z.string().optional()
