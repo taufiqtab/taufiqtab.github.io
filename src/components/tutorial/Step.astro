@@ -1,0 +1,19 @@
+---
+// Numbered tutorial step: big badge + title, content in the slot.
+type Props = { n: string | number; title: string; id: string; time?: string };
+const { n, title, id, time } = Astro.props;
+---
+
+<section id={id} class="tut-step scroll-mt-28">
+  <div class="flex items-center gap-4 mb-4">
+    <span
+      class="sigmar-ff shrink-0 inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-space-red text-white text-xl sm:text-2xl"
+      >{n}</span
+    >
+    <div>
+      <h2 class="sigmar-ff text-balance py-0! leading-tight">{title}</h2>
+      {time && <span class="kanit-light text-xs opacity-70">⏱️ {time}</span>}
+    </div>
+  </div>
+  <slot />
+</section>

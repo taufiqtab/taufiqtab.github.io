@@ -1,0 +1,35 @@
+---
+// Row of vertical (9:16) frames from the reel, each with a short caption.
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+type Shot = { src: ImageMetadata; alt: string; caption?: string };
+type Props = { shots: Shot[] };
+const { shots } = Astro.props;
+const cols =
+  shots.length === 1
+    ? "grid-cols-1 max-w-[280px]"
+    : shots.length === 2
+      ? "grid-cols-2 max-w-[560px]"
+      : "grid-cols-2 sm:grid-cols-3 max-w-full";
+---
+
+<div class={`tut-shots grid ${cols} gap-3 sm:gap-4 mx-auto my-6`}>
+  {
+    shots.map((s) => (
+      <figure class="m-0">
+        <Image
+          src={s.src}
+          alt={s.alt}
+          width={360}
+          class="w-full rounded-2xl! border border-gray-500/30 shadow-lg"
+        />
+        {s.caption && (
+          <figcaption class="kanit-light text-xs text-center mt-2 opacity-80 text-balance">
+            {s.caption}
+          </figcaption>
+        )}
+      </figure>
+    ))
+  }
+</div>

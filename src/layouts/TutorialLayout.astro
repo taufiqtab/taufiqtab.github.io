@@ -1,0 +1,122 @@
+---
+// Long-form tutorial page: hero, meta chips, table of contents, then the steps.
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+import MainLayout from "./MainLayout.astro";
+import siteConfig from "../site.config";
+
+type TocItem = { id: string; text: string };
+type Props = {
+  title: string;
+  eyebrow: string;
+  description: string;
+  cover: ImageMetadata;
+  coverAlt: string;
+  meta: string[];
+  toc: TocItem[];
+};
+const { title, eyebrow, description, cover, coverAlt, meta, toc } = Astro.props;
+---
+
+<MainLayout activePage="tutorial" pageTitle={siteConfig.title + " | " + title} showSubscribeForm={false}>
+  <article class="tut page-content text-left!">
+    <a href="/tutorial" class="kanit-light text-xs opacity-70">← Semua tutorial</a>
+    <span class="block mt-6 tag w-fit rounded-full text-xs px-2 py-0 border border-gray-500 kanit-light">{eyebrow}</span>
+    <h1 class="sigmar-ff text-balance leading-tight">{title}</h1>
+    <p class="kanit-regular text-balance">{description}</p>
+    <div class="flex flex-wrap gap-2 mb-6">
+      {meta.map((m) => <span class="rounded-full text-xs px-3 py-1 bg-black/5 dark:bg-white/10 kanit-regular">{m}</span>)}
+    </div>
+    <Image src={cover} alt={coverAlt} width={1200} loading="eager" class="w-full rounded-4xl! shadow-xl mb-8" />
+
+    <nav class="tut-toc rounded-3xl border border-gray-500/30 bg-black/5 dark:bg-white/5 px-6 py-5 mb-12" aria-label="Daftar isi">
+      <p class="sigmar-ff text-lg mb-3!">Daftar isi</p>
+      <ol class="list-decimal pl-5 grid sm:grid-cols-2 gap-x-8 gap-y-1 kanit-light text-sm sm:text-base">
+        {toc.map((t) => <li><a href={`#${t.id}`}>{t.text}</a></li>)}
+      </ol>
+    </nav>
+
+    <div class="tut-body flex flex-col gap-14">
+      <slot />
+    </div>
+  </article>
+</MainLayout>
+
+<script>
+  // One delegated handler for every Cmd copy button on any tutorial page.
+  document.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".tut-copy");
+    if (!btn) return;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.code ?? "");
+      btn.textContent = "Copied ✓";
+    } catch {
+      btn.textContent = "Gagal copy";
+    }
+    setTimeout(() => (btn.textContent = "Copy"), 1500);
+  });
+</script>
+
+<style is:global>
+  .tut-body p,
+  .tut-body li {
+    font-weight: 300;
+    line-height: 1.75;
+  }
+  .tut-body h3 {
+    font-family: "Sigmar", sans-serif;
+    font-size: 1.15rem;
+    margin: 1.75rem 0 0.75rem;
+  }
+  .tut-body ul,
+  .tut-body ol:not(.not-tut) {
+    padding-left: 1.4rem;
+    margin-bottom: 1.5rem;
+  }
+  .tut-body ul {
+    list-style: disc;
+  }
+  .tut-body ol:not(.not-tut) {
+    list-style: decimal;
+  }
+  .tut-body li {
+    margin-bottom: 0.35rem;
+  }
+  .tut-body strong {
+    font-weight: 700;
+  }
+  .tut-body :not(pre) > code {
+    font-family: Menlo, monospace;
+    font-size: 0.85em;
+    padding: 0.1em 0.4em;
+    border-radius: 0.4em;
+    background: rgb(127 127 127 / 0.18);
+  }
+  .tut-body a:not(.button-link) {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .tut-body table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+  .tut-body th,
+  .tut-body td {
+    border-bottom: 1px solid rgb(127 127 127 / 0.3);
+    padding: 0.55rem 0.5rem;
+    text-align: left;
+    vertical-align: top;
+    font-weight: 300;
+  }
+  .tut-body th {
+    font-weight: 700;
+  }
+  .tut-table {
+    overflow-x: auto;
+  }
+  .tut-cmd pre {
+    border-radius: 0;
+  }
+</style>

@@ -1,0 +1,19 @@
+---
+// Syntax-highlighted code block with a label and a copy button.
+// The click handler lives in TutorialLayout (event delegation, survives swup page swaps).
+import { Code } from "astro:components";
+
+type Props = { code: string; lang?: string; label?: string };
+const { code, lang = "bash", label } = Astro.props;
+const text = code.trim();
+---
+
+<div class="tut-cmd my-4 rounded-2xl overflow-hidden border border-gray-500/40 text-left">
+  <div class="flex items-center justify-between px-4 py-2 bg-[#161b22] text-xs text-gray-300">
+    <span class="font-mono">{label ?? lang}</span>
+    <button type="button" class="tut-copy cursor-pointer rounded-full border border-gray-500/60 px-3 py-0.5 hover:border-white hover:text-white" data-code={text}>
+      Copy
+    </button>
+  </div>
+  <Code code={text} lang={lang as any} theme="github-dark" wrap class="m-0! px-4 py-3 text-sm" />
+</div>

@@ -1,0 +1,357 @@
+---
+import TutorialLayout from "../../layouts/TutorialLayout.astro";
+import Step from "../../components/tutorial/Step.astro";
+import Shots from "../../components/tutorial/Shots.astro";
+import Figure from "../../components/tutorial/Figure.astro";
+import Callout from "../../components/tutorial/Callout.astro";
+import Cmd from "../../components/tutorial/Cmd.astro";
+import Button from "../../components/Button.astro";
+import ArrowRight from "../../icons/ArrowRight.astro";
+
+import cover from "../../assets/images/tutorial/hermes/hermescover.jpg";
+import arch from "../../assets/images/tutorial/hermes/hermesarch.jpg";
+import hook from "../../assets/images/tutorial/hermes/hook.jpg";
+import capeDm from "../../assets/images/tutorial/hermes/cape-dm.jpg";
+import vpsOptions from "../../assets/images/tutorial/hermes/vps-options.jpg";
+import vpsPlan from "../../assets/images/tutorial/hermes/vps-plan.jpg";
+import realSumopod from "../../assets/images/tutorial/hermes/real-sumopod.jpg";
+import install from "../../assets/images/tutorial/hermes/install.jpg";
+import topup from "../../assets/images/tutorial/hermes/topup.jpg";
+import apikey from "../../assets/images/tutorial/hermes/apikey.jpg";
+import realDeepseek from "../../assets/images/tutorial/hermes/real-deepseek.jpg";
+import setupProvider from "../../assets/images/tutorial/hermes/setup-provider.jpg";
+import setupTelegram from "../../assets/images/tutorial/hermes/setup-telegram.jpg";
+import botfather from "../../assets/images/tutorial/hermes/botfather.jpg";
+import team from "../../assets/images/tutorial/hermes/team.jpg";
+import dashTheme from "../../assets/images/tutorial/hermes/dash-theme.jpg";
+import dashPassword from "../../assets/images/tutorial/hermes/dash-password.jpg";
+import planet from "../../assets/images/tutorial/hermes/planet.jpg";
+import planetPopup from "../../assets/images/tutorial/hermes/planet-popup.jpg";
+import worklog from "../../assets/images/tutorial/hermes/worklog.jpg";
+import realDashboard from "../../assets/images/tutorial/hermes/real-dashboard.jpg";
+import realWorklog from "../../assets/images/tutorial/hermes/real-worklog.jpg";
+import domain from "../../assets/images/tutorial/hermes/domain.jpg";
+import checklist from "../../assets/images/tutorial/hermes/checklist.jpg";
+
+const toc = [
+  { id: "cerita", text: "Kenapa tutorial ini ada" },
+  { id: "gambaran", text: "Gambaran besar & biaya" },
+  { id: "vps", text: "Siapin VPS" },
+  { id: "install", text: "Install Hermes" },
+  { id: "deepseek", text: "Top-up & API key DeepSeek" },
+  { id: "setup", text: "Jalanin hermes setup" },
+  { id: "telegram", text: "Bikin bot Telegram" },
+  { id: "gateway", text: "Biar bot nyala terus" },
+  { id: "tim", text: "Rekrut tim agent" },
+  { id: "dashboard", text: "Dashboard + password" },
+  { id: "contoh", text: "Contoh punyaku: Planet Opik" },
+  { id: "domain", text: "Bonus: pakai domain sendiri" },
+  { id: "masalah", text: "Kalau mentok" },
+  { id: "ringkasan", text: "Ringkasan checklist" },
+];
+
+const promptRekrut = `Tolong rekrut rekan kerja buat kantor kita: asisten manajer, analis, data, engineer, QA, marketing, sales, dan support.
+Tiap agent punya nama peran, warna, dan tugas yang jelas. Kamu jadi manager-nya:
+terima perintah dari aku, bagi tugas ke tim, lalu laporin hasilnya ke aku.`;
+
+const promptDashboard = `Bikinin dashboard monitoring virtual office buat semua agent kita.
+- Tema: planet luar angkasa (tiap project = 1 planet), ada pantry, lounge, gym, dan asrama
+- Tampilkan status tiap agent: kerja / santai / tidur
+- Ada worklog: jumlah pesan, tools, token, dan estimasi biaya
+- Bisa dibuka di browser lewat port 8080
+- Wajib pakai password, cuma aku yang boleh masuk
+Kasih tahu aku alamat dan password-nya kalau sudah jadi.`;
+
+const promptTunnel = `Aku punya domain contoh.my.id yang nameserver-nya sudah di Cloudflare.
+Tolong install cloudflared dan pasang Cloudflare Tunnel supaya dashboard di port 8080
+bisa dibuka lewat https://kantor.contoh.my.id. Jalankan tunnel-nya sebagai service
+biar nyala lagi kalau server restart. Kalau butuh login Cloudflare, kasih aku link-nya.`;
+---
+
+<TutorialLayout
+  title="Setup Kantor AI pakai Hermes, dari Nol"
+  eyebrow="Tutorial · Halopik #03"
+  description="Panduan lengkap versi tulisan dari reel Halopik #03: sewa VPS, install Hermes Agent, sambungin ke DeepSeek dan Telegram, rekrut tim agent, sampai punya dashboard kantor sendiri di domain kamu."
+  cover={cover}
+  coverAlt="Opik dan sembilan agent astronot, judul Kantor AI pakai Hermes"
+  meta={["⏱️ ±45–60 menit", "💸 ±Rp100rb modal awal", "🐧 Ubuntu 24.04", "🧑‍💻 Level: pemula yang berani buka terminal"]}
+  toc={toc}
+>
+  <!-- 0. Cerita -->
+  <section id="cerita" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Kenapa tutorial ini ada</h2>
+    <p>
+      Di Halopik #02 aku pamer <strong>"kantor AI"</strong>: sembilan agent yang kerja buat aku, dari manager sampai QA. Di akhir video aku bilang,
+      <em>"komen HERMES kalau mau tutorialnya."</em> Ternyata yang komen banyak banget. Awalnya aku DM satu-satu... sampai DM ke-64 aku tumbang.
+    </p>
+    <Shots
+      shots={[
+        { src: hook, alt: "Notifikasi komentar Hermes bertumpuk di HP Opik", caption: "HP getar terus sampai jalan sendiri 📳" },
+        { src: capeDm, alt: "Opik tumbang di depan laptop setelah DM ke-64", caption: "DM ke-64… krik krik 🦗" },
+      ]}
+    />
+    <p>
+      Jadi aku bikin video tutorialnya. Tapi video 90 detik nggak muat buat semua detail, jadi ini versi lengkapnya: tiap langkah, perintah yang bisa langsung di-copy, plus jebakan yang aku temuin di jalan.
+    </p>
+  </section>
+
+  <!-- Gambaran -->
+  <section id="gambaran" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Gambaran besar &amp; biaya</h2>
+    <p>
+      <strong>Hermes Agent</strong> (dari Nous Research) adalah agent AI open-source yang jalan di server kamu sendiri. Dia bisa pakai tools (terminal, file, browser), punya memori, dan bisa diajak ngobrol lewat Telegram, Discord, Slack, dll. "Otaknya" model AI yang kamu pilih, di sini aku pakai <strong>DeepSeek</strong> karena murah.
+    </p>
+    <Figure src={arch} alt="Diagram: Kamu chat ke bot Telegram, diteruskan ke Hermes di VPS, Hermes memanggil DeepSeek API, dashboard dibuka lewat Cloudflare Tunnel" caption="Kamu cuma ngobrol di Telegram. Sisanya kejadian di VPS." />
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Kebutuhan</th><th>Yang aku pakai</th><th>Biaya</th></tr></thead>
+        <tbody>
+          <tr><td>Server (VPS)</td><td>SumoPod · Tencent 2 vCPU / 2 GB / 40 GB, Singapore</td><td>Rp60.000/bulan</td></tr>
+          <tr><td>Otak AI</td><td>Saldo DeepSeek Platform</td><td>mulai $2 (+VAT 6% = $2,12)</td></tr>
+          <tr><td>Chat</td><td>Bot Telegram dari @BotFather</td><td>gratis</td></tr>
+          <tr><td>Domain (opsional)</td><td>domain .my.id / .id / .com + Cloudflare Free</td><td>tergantung domain</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs opacity-70">Harga per Oktober 2026, selalu cek ulang di web masing-masing.</p>
+    <Callout type="info" title="Yang perlu kamu siapin">
+      <ul class="mb-0!">
+        <li>Laptop/PC dengan terminal (macOS/Linux: Terminal, Windows: PowerShell atau Windows Terminal).</li>
+        <li>Kartu debit/kredit yang bisa transaksi online (kartu dari bank digital juga bisa).</li>
+        <li>Akun Telegram di HP.</li>
+        <li>Mental "nggak apa-apa salah ketik, tinggal ulang" 😄</li>
+      </ul>
+    </Callout>
+  </section>
+
+  <!-- 1. VPS -->
+  <Step n="1" title="Siapin VPS (RAM minimal 2 GB)" id="vps" time="±10 menit">
+    <p>
+      VPS itu komputer sewaan yang nyala 24 jam di data center. Hermes bakal tinggal di situ, jadi agent kamu tetap kerja walau laptop kamu mati. Pilihannya banyak:
+    </p>
+    <Shots
+      shots={[
+        { src: vpsOptions, alt: "Empat pilihan rumah server: SumoPod, Biznet Gio, Nevacloud, punya sendiri", caption: "\"Bisa kurang, Bang?\" (nggak bisa)" },
+        { src: vpsPlan, alt: "Pilihan plan SumoPod Tencent 2 vCPU 2 GB Rp60.000", caption: "Plan yang aku pilih" },
+      ]}
+    />
+    <ul>
+      <li><strong>SumoPod</strong> (server Tencent): ±Rp60rb/bulan untuk 2 GB. Ini yang aku pakai, murah buat belajar.</li>
+      <li><strong>Biznet Gio</strong> (NEO Lite): mulai ±Rp75rb/bulan untuk 2 GB (belum PPN).</li>
+      <li><strong>Nevacloud</strong> (Nevalite): ±Rp100rb/bulan untuk 2 GB.</li>
+      <li><strong>Punya sendiri?</strong> VPS langganan lain atau PC/mini PC di rumah juga bisa, asal Linux dan nyala terus.</li>
+    </ul>
+    <p>Setelan waktu bikin VPS:</p>
+    <ol>
+      <li><strong>Region:</strong> Singapore (dekat dari Indonesia, latency kecil).</li>
+      <li><strong>OS:</strong> Ubuntu Server 24.04 LTS 64-bit.</li>
+      <li><strong>Plan:</strong> minimal 2 vCPU / 2 GB RAM. 1 GB bakal sesak.</li>
+      <li>Klik <strong>Create VPS</strong>, lalu catat <strong>IP publik</strong> dan <strong>password root</strong> (atau pasang SSH key kalau provider-nya menyediakan).</li>
+    </ol>
+    <Figure src={realSumopod} alt="Screenshot asli halaman pemilihan plan SumoPod dengan Ubuntu 24.04 dan Singapore" caption="Screenshot asli: Ubuntu 24.04 · Singapore · Tencent 2 vCPU / 2 GB = Rp60.000/bulan" />
+    <h3>Masuk ke server</h3>
+    <p>Buka terminal di laptop kamu, lalu SSH ke VPS (ganti <code>IP_VPS</code> dengan IP kamu). Ketik <code>yes</code> kalau ditanya fingerprint, lalu masukkan password.</p>
+    <Cmd label="terminal laptop" code={`ssh root@IP_VPS`} />
+    <p>Sekali masuk, update dulu paketnya biar bersih:</p>
+    <Cmd label="terminal VPS" code={`apt update && apt upgrade -y`} />
+    <Callout type="tip">Waktu ngetik password di terminal, layarnya memang kosong (nggak muncul bintang). Itu normal, ketik aja terus Enter.</Callout>
+  </Step>
+
+  <!-- 2. Install -->
+  <Step n="2" title="Install Hermes, satu baris doang" id="install" time="±3 menit">
+    <Shots shots={[{ src: install, alt: "Terminal menjalankan curl install Hermes sampai Hermes installed", caption: "Satu baris doang ☝️" }]} />
+    <p>Masih di terminal VPS, jalankan installer resmi:</p>
+    <Cmd label="terminal VPS" code={`curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash`} />
+    <p>
+      Tunggu sampai selesai. Kalau habis itu perintah <code>hermes</code> belum dikenali, muat ulang shell-nya (atau logout lalu SSH lagi):
+    </p>
+    <Cmd label="terminal VPS" code={`source ~/.bashrc
+hermes --help`} />
+    <Callout type="info">Pakai Windows dan mau coba di laptop sendiri dulu? Ada installer PowerShell <code>iex (irm https://hermes-agent.nousresearch.com/install.ps1)</code>. Tapi buat kantor yang nyala 24 jam, VPS tetap pilihan paling enak.</Callout>
+  </Step>
+
+  <!-- 3-4. DeepSeek -->
+  <Step n="3" title="Top-up DeepSeek & bikin API key" id="deepseek" time="±5 menit">
+    <p>
+      Hermes butuh "otak" berupa model AI. Aku pakai <strong>DeepSeek Platform</strong> (<a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>) karena harganya bersahabat buat eksperimen.
+    </p>
+    <Shots
+      shots={[
+        { src: topup, alt: "Halaman top-up DeepSeek dengan pilihan nominal $2 sampai $100", caption: "Mulai $2, \"lebih murah dari kopi\" ☕" },
+        { src: apikey, alt: "Tombol Create API Key dan kunci emas sk- yang disensor", caption: "API key = RAHASIA 🤫" },
+      ]}
+    />
+    <ol>
+      <li>Daftar / login, lalu buka menu <strong>Top up</strong>.</li>
+      <li>Pilih nominal. Minimum <strong>$2</strong> (total $2,12 setelah VAT 6%). Mau lebih lega, ambil $5.</li>
+      <li>Bayar pakai <strong>Debit or Credit Card</strong>. Kartu debit dari bank digital Indonesia biasanya bisa.</li>
+      <li>Buka menu <strong>API keys</strong> → <strong>Create API Key</strong>, kasih nama (mis. <code>hermes-vps</code>).</li>
+      <li><strong>Copy key-nya sekarang</strong> dan simpan di tempat aman (password manager). Key cuma ditampilkan sekali.</li>
+    </ol>
+    <Figure src={realDeepseek} alt="Screenshot asli halaman top-up DeepSeek: $2 dipilih, total $2.12" caption="Screenshot asli: $2 + VAT 6% = $2,12" />
+    <Callout type="warn" title="Jangan pernah share API key">
+      Siapa pun yang pegang key kamu bisa menghabiskan saldo kamu. Jangan ditaruh di screenshot, repo GitHub, atau grup chat. Kalau kebocoran, langsung hapus key-nya di dashboard dan bikin yang baru.
+    </Callout>
+  </Step>
+
+  <!-- 5. Setup -->
+  <Step n="4" title="Jalanin hermes setup" id="setup" time="±5 menit">
+    <p>Balik ke terminal VPS dan jalankan wizard setup:</p>
+    <Cmd label="terminal VPS" code={`hermes setup`} />
+    <Shots
+      shots={[
+        { src: setupProvider, alt: "Wizard hermes setup memilih provider DeepSeek dan memasukkan API key", caption: "Pilih DeepSeek, paste API key" },
+        { src: setupTelegram, alt: "Wizard hermes setup memilih Telegram sebagai messaging platform", caption: "Sisanya Enter, Enter… pilih Telegram" },
+      ]}
+    />
+    <p>Navigasi pakai panah atas/bawah, Enter untuk memilih:</p>
+    <ol>
+      <li><strong>Model provider:</strong> pilih <code>DeepSeek</code>.</li>
+      <li><strong>API key:</strong> paste key dari langkah sebelumnya (klik kanan atau <code>Ctrl+Shift+V</code> di banyak terminal). Isinya nggak kelihatan, itu normal.</li>
+      <li><strong>Model, tools, memory, dll.:</strong> biarin <em>default</em>, tekan Enter aja.</li>
+      <li><strong>Messaging platform:</strong> pilih <code>Telegram</code>. Wizard akan minta <strong>bot token</strong>. Jangan ditutup, kita bikin token-nya di langkah berikut.</li>
+    </ol>
+    <Callout type="tip">Wizard-nya ketutup duluan? Santai. Bagian Telegram bisa diulang kapan aja dengan <code>hermes gateway setup</code>.</Callout>
+  </Step>
+
+  <!-- 7. Telegram -->
+  <Step n="5" title="Bikin bot Telegram di @BotFather" id="telegram" time="±3 menit">
+    <Shots shots={[{ src: botfather, alt: "Chat dengan BotFather membuat bot baru, bot menyapa Halo Bos", caption: "\"Kuberi kau… sebuah bot.\" 🐈" }]} />
+    <ol>
+      <li>Di Telegram, cari <strong>@BotFather</strong> (yang centang biru, hati-hati akun palsu).</li>
+      <li>Kirim <code>/newbot</code>.</li>
+      <li>Kasih <strong>nama tampilan</strong>, mis. <code>Kantor Opik</code>.</li>
+      <li>Kasih <strong>username</strong> yang unik dan berakhiran <code>bot</code>, mis. <code>kantor_opik_bot</code>.</li>
+      <li>BotFather mengirim <strong>token</strong> berbentuk <code>123456789:ABC-xxxx</code>. Copy, lalu paste ke wizard Hermes yang tadi nunggu.</li>
+    </ol>
+    <p>Wizard akan bilang Telegram tersambung. Buka bot kamu di Telegram, tekan <strong>Start</strong>, lalu sapa: <em>"Halo!"</em></p>
+    <Callout type="warn" title="Token bot = rahasia juga">
+      Siapa pun yang pegang token bisa mengendalikan bot kamu. Kalau bocor, kirim <code>/revoke</code> ke @BotFather untuk bikin token baru.
+    </Callout>
+    <h3>Kunci bot supaya cuma kamu yang bisa nyuruh</h3>
+    <p>
+      Agent kamu punya akses ke terminal server, jadi jangan biarkan orang asing ngobrol dengannya. Cari tahu user ID Telegram kamu lewat <strong>@userinfobot</strong>, lalu masukkan ke file <code>.env</code> Hermes (ada di folder <code>~/.hermes/</code>):
+    </p>
+    <Cmd label="~/.hermes/.env" lang="ini" code={`TELEGRAM_ALLOWED_USERS=123456789`} />
+    <p>Bisa lebih dari satu, pisahkan dengan koma. Restart gateway setelah mengubahnya.</p>
+  </Step>
+
+  <!-- gateway -->
+  <Step n="6" title="Biar bot nyala terus" id="gateway" time="±2 menit">
+    <p>
+      Bot Telegram dilayani oleh <strong>gateway</strong> Hermes. Buat coba-coba, jalankan di depan layar (<code>Ctrl+C</code> untuk berhenti):
+    </p>
+    <Cmd label="terminal VPS" code={`hermes gateway`} />
+    <p>Kalau sudah oke, pasang sebagai service supaya tetap jalan walau kamu logout atau server restart:</p>
+    <Cmd label="terminal VPS" code={`hermes gateway install
+sudo loginctl enable-linger $USER
+hermes gateway start`} />
+    <p>Sekarang tutup terminal, chat bot-nya dari HP. Kalau dia bales, selamat: <strong>kantor kamu resmi buka</strong> 🎉</p>
+  </Step>
+
+  <!-- 9. Rekrut tim -->
+  <Step n="7" title="Anggap aja punya karyawan: rekrut tim" id="tim" time="±5 menit">
+    <p>
+      Mulai dari sini, kamu nggak ngetik perintah Linux lagi. Kamu <strong>ngobrol</strong>. Di awal cuma ada satu agent, jadi suruh dia rekrut rekan kerja.
+    </p>
+    <Shots shots={[{ src: team, alt: "Sembilan agent astronot di meja masing-masing, 1 agent jadi 9 agent", caption: "1 agent → 9 agent. Manager langsung leha-leha 😎" }]} />
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptRekrut} />
+    <Callout type="tip">Bebas mau peran apa. Kalau kamu jualan online, mungkin butuh "admin CS" dan "copywriter". Kalau dev, butuh "engineer" dan "QA". Tim di video #02 dan #03 cuma contoh.</Callout>
+  </Step>
+
+  <!-- 9b. Dashboard -->
+  <Step n="8" title="Minta dashboard monitoring + password" id="dashboard" time="±10–20 menit (agent yang kerja)">
+    <p>Biar kelihatan siapa lagi ngapain, minta tim bikin dashboard. Temanya bebas: planet, kantor pixel, sampai pedesaan (agent jadi petani, lengkap sama kerbau 🐃).</p>
+    <Shots
+      shots={[
+        { src: dashTheme, alt: "Mesin slot tema dashboard: planet, kantor, desa", caption: "Tema bebas, kreasikan!" },
+        { src: dashPassword, alt: "Halaman login dashboard dengan gembok, kucing salah password", caption: "Kucing salah password ❌ ngambek" },
+      ]}
+    />
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptDashboard} />
+    <p>
+      Agent akan menulis kodenya, menjalankannya di server, lalu mengirim alamat seperti <code>http://IP_VPS:8080</code>. Kalau nggak kebuka dari browser, kemungkinan port 8080 masih ditutup firewall/security group provider. Kamu bisa buka port-nya sementara, atau langsung lompat ke <a href="#domain">bonus domain</a> (lebih aman, port nggak perlu dibuka).
+    </p>
+    <Callout type="warn">Selalu minta pakai password. Dashboard ini menampilkan isi kerjaan agent kamu, jangan sampai kebuka ke publik.</Callout>
+  </Step>
+
+  <!-- Contoh -->
+  <section id="contoh" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Contoh punyaku: Planet Opik 🪐</h2>
+    <p>
+      Ini hasil dashboard yang dibikin tim agent aku. Ada pantry, lounge (TV nonton bola + kolam), gym, sampai asrama. Tiap project jadi satu planet, tinggal klik buat lihat detail dan link-nya.
+    </p>
+    <Shots
+      shots={[
+        { src: planet, alt: "Planet Opik versi kartun: pantry, lounge, gym, asrama", caption: "Jam 9 pagi: 0 kerja · 0 santai · 9 tidur 🤦" },
+        { src: planetPopup, alt: "Popup planet project Makeup by Uci", caption: "1 project = 1 planet" },
+        { src: worklog, alt: "Panel worklog: 8.1k pesan, 4.1k tools, 19.6M token, $9.41", caption: "Marketing… kamu ngapain aja? 👀" },
+      ]}
+    />
+    <Figure src={realDashboard} alt="Screenshot asli dashboard 3D Planet Opik" caption="Dashboard asli: 3D, lengkap dengan asrama 9 kasur" />
+    <Figure src={realWorklog} alt="Screenshot asli panel Analytics Worklog" caption="Worklog asli: 19,6 juta token ≈ $9,4 (estimasi dashboard, bukan tagihan)" narrow />
+    <Callout type="lol">Fakta lapangan: bar Marketing paling pendek, cuma 7 tools. Sampai sekarang belum ada klarifikasi dari yang bersangkutan.</Callout>
+  </section>
+
+  <!-- Domain -->
+  <Step n="★" title="Bonus: pakai domain sendiri" id="domain" time="±15 menit + nunggu DNS">
+    <p>Alamat <code>http://103.xx.xx.xx:8080</code> itu jelek dan susah dihafal. Ganti jadi <code>https://kantor.domainkamu.id</code>:</p>
+    <Shots shots={[{ src: domain, alt: "Diagram beli domain, Cloudflare, tunnel ke VPS", caption: "Biar agent yang pasang 👷" }]} />
+    <ol>
+      <li><strong>Beli domain</strong> di Rumahweb, DomaiNesia, atau provider VPS kamu. Buat belajar, <code>.my.id</code> murah banget.</li>
+      <li><strong>Daftar Cloudflare</strong> (paket Free cukup), klik <strong>Add a domain</strong>, masukkan domain kamu.</li>
+      <li>Cloudflare kasih dua <strong>nameserver</strong>. Ganti nameserver di panel tempat kamu beli domain ke dua alamat itu. Tunggu sampai Cloudflare bilang domain <em>Active</em> (bisa beberapa menit sampai beberapa jam).</li>
+      <li>Suruh agent pasang <strong>Cloudflare Tunnel</strong>:</li>
+    </ol>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptTunnel} />
+    <p>
+      Tunnel itu koneksi <em>keluar</em> dari server ke Cloudflare, jadi port dashboard nggak perlu dibuka ke internet. Bonusnya, HTTPS (gembok hijau) langsung dapat. Project lain yang dibikin agent juga bisa di-live-kan di subdomain yang sama, mis. <code>project.domainkamu.id</code>.
+    </p>
+  </Step>
+
+  <!-- Troubleshooting -->
+  <section id="masalah" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Kalau mentok</h2>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Gejala</th><th>Coba ini</th></tr></thead>
+        <tbody>
+          <tr><td><code>hermes: command not found</code></td><td><code>source ~/.bashrc</code> atau logout lalu SSH lagi.</td></tr>
+          <tr><td>Bot Telegram diam aja</td><td>Pastikan gateway jalan: <code>hermes gateway start</code>. Cek log di <code>~/.hermes/logs/</code>. Cek juga user ID kamu ada di <code>TELEGRAM_ALLOWED_USERS</code>.</td></tr>
+          <tr><td>Agent bales error soal saldo / 402</td><td>Saldo DeepSeek habis. Top-up lagi.</td></tr>
+          <tr><td>Server lemot / proses ke-kill</td><td>RAM kurang. Naikkan ke plan 4 GB, atau minta agent bikin swap file.</td></tr>
+          <tr><td>Dashboard nggak kebuka di <code>IP:8080</code></td><td>Buka port 8080 di firewall/security group provider, atau pakai Cloudflare Tunnel.</td></tr>
+          <tr><td>Lupa password dashboard</td><td>Tanya agent-nya. Dia yang bikin, dia yang tahu 😄</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Ringkasan -->
+  <section id="ringkasan" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Ringkasan checklist</h2>
+    <Shots shots={[{ src: checklist, alt: "Checklist akhir dan Opik foto bareng sembilan agent", caption: "Simpan, screenshot, centang satu-satu ✅" }]} />
+    <ol>
+      <li>VPS Ubuntu 24.04, RAM ≥ 2 GB (SumoPod Rp60rb/bulan).</li>
+      <li><code>curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash</code></li>
+      <li>Top-up DeepSeek mulai $2 + bikin API key.</li>
+      <li><code>hermes setup</code> → DeepSeek → paste key → default → Telegram.</li>
+      <li>@BotFather <code>/newbot</code> → paste token → kunci dengan <code>TELEGRAM_ALLOWED_USERS</code>.</li>
+      <li><code>hermes gateway install</code> biar nyala terus.</li>
+      <li>Chat: rekrut tim.</li>
+      <li>Chat: bikin dashboard + password.</li>
+      <li>Bonus: domain → Cloudflare → Tunnel.</li>
+    </ol>
+    <Callout type="warn" title="Keamanan, sekali lagi">
+      API key, token bot, password root VPS, dan password dashboard: <strong>jangan pernah di-share</strong>. Agent kamu punya akses penuh ke server, perlakukan dia kayak karyawan yang pegang kunci kantor.
+    </Callout>
+    <p>
+      Selamat mencoba! Mentok di langkah tertentu, atau mau ngoprek bareng topik lain? Tulis di kolom komentar reel-nya atau DM <a href="https://instagram.com/taufiqtab" target="_blank" rel="noopener">@taufiqtab</a> (tapi pelan-pelan ya, jangan sampai DM ke-64 lagi 🫠).
+    </p>
+    <div class="flex flex-wrap gap-3 mt-4">
+      <Button href="/tutorial/bikin-animasi-halopik" class="space-btn-filled">
+        Lanjut: cara bikin animasi Halopik <ArrowRight class="w-5 h-5 fill-current ml-3" />
+      </Button>
+    </div>
+  </section>
+</TutorialLayout>

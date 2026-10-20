@@ -1,0 +1,421 @@
+---
+import TutorialLayout from "../../layouts/TutorialLayout.astro";
+import Step from "../../components/tutorial/Step.astro";
+import Shots from "../../components/tutorial/Shots.astro";
+import Figure from "../../components/tutorial/Figure.astro";
+import Callout from "../../components/tutorial/Callout.astro";
+import Cmd from "../../components/tutorial/Cmd.astro";
+import Button from "../../components/Button.astro";
+import ArrowRight from "../../icons/ArrowRight.astro";
+
+import cover from "../../assets/images/tutorial/animasi/animcover.jpg";
+import pipeline from "../../assets/images/tutorial/animasi/pipeline.jpg";
+import expressions from "../../assets/images/tutorial/animasi/expressions.jpg";
+import lipsync from "../../assets/images/tutorial/animasi/lipsync.jpg";
+import ep00 from "../../assets/images/tutorial/animasi/ep00-perkenalan.jpg";
+import ep01 from "../../assets/images/tutorial/animasi/ep01-devops-sre.jpg";
+import ep01info from "../../assets/images/tutorial/animasi/ep01-infografis.jpg";
+import ep02 from "../../assets/images/tutorial/animasi/ep02-kantor-ai.jpg";
+import ep04 from "../../assets/images/tutorial/animasi/ep04-reverse-engineering.jpg";
+import ep04info from "../../assets/images/tutorial/animasi/ep04-infografis.jpg";
+import ep05 from "../../assets/images/tutorial/animasi/ep05-vibe-coding.jpg";
+import ep07 from "../../assets/images/tutorial/animasi/ep07-optimasi-import.jpg";
+import ep08 from "../../assets/images/tutorial/animasi/ep08-autoscale.jpg";
+import gagHook from "../../assets/images/tutorial/animasi/gag-hook.jpg";
+import gagCape from "../../assets/images/tutorial/animasi/gag-cape-dm.jpg";
+
+const toc = [
+  { id: "cerita", text: "Halopik itu dibikin pakai apa?" },
+  { id: "alat", text: "Alat & biaya" },
+  { id: "terminal", text: "Siapin terminal, Node & Python" },
+  { id: "agent", text: "Install AI coding agent" },
+  { id: "project", text: "Bikin project + aturan main" },
+  { id: "karakter", text: "Desain karakter" },
+  { id: "prompting", text: "Seni nyuruh AI (prompting)" },
+  { id: "storyboard", text: "Tulis storyboard" },
+  { id: "vo", text: "Voice over pakai TTS" },
+  { id: "animasi", text: "Animasikan scene di Remotion" },
+  { id: "audio", text: "Musik & SFX" },
+  { id: "render", text: "Render & upload" },
+  { id: "pelajaran", text: "Pelajaran dari 18 episode" },
+];
+
+const claudeMd = `# Halopik — catatan series
+
+Series reel IG "Halopik" (hidup, kerja, tech, apa aja). Satu folder per episode.
+
+## Ciri khas video
+- Wajib ada unsur kocak / konyol. Minimal satu momen lucu per episode
+  (gag visual, reaksi lebay, plot twist receh, punchline). Tulis gag-nya
+  eksplisit di storyboard.md, jangan cuma "dibikin lucu nanti".
+- Karakter Opik chibi 2D yang sama di semua episode (shared/Opik.tsx).
+- Opik nggak harus muncul di setiap scene. Sesekali layar fokus penuh
+  ke infografis, VO tetap jalan. Tandai scene tanpa Opik di storyboard.
+- Format 9:16 (1080x1920), 30 fps, durasi 60-75 detik.
+- Pipeline: storyboard.md -> vo-script.txt -> scene Remotion + VO per scene
+  + musik/SFX sintetis.`;
+
+const promptScaffold = `Aku mau bikin serial animasi pendek untuk Instagram Reels, namanya "Halopik".
+Format 9:16, 1080x1920, 30 fps, durasi 60-75 detik per episode.
+Visual dibikin 100% dari kode pakai Remotion (React + SVG), kartun 2D flat.
+
+Tolong siapin struktur project-nya:
+- npm workspace di root, satu folder per episode (01-nama-episode/, 02-...)
+- folder shared/ untuk karakter dan helper yang dipakai semua episode
+- script npm: studio, render, vo (generate voice over), audio (musik & SFX)
+Jelasin dulu rencananya sebelum bikin file.`;
+
+const promptKarakter = `Bikin komponen React shared/Opik.tsx: karakter chibi 2D pakai SVG.
+Ciri-ciri: cowok, rambut hitam jambul, kacamata frame cokelat tortoiseshell,
+hoodie merah dengan logo </> di dada, headphone teal di leher, jeans biru,
+sepatu krem, ransel cokelat. Outline cokelat tua 4px, gaya flat, kepala besar.
+
+Props yang aku butuh:
+- eyes: 'open' | 'blink' | 'happy' | 'wide' | 'wink'
+- mouth: 'smile' | 'open' | 'o' | 'grin' | 'flat'
+- armL / armR / legL / legR: sudut sendi (derajat) biar bisa pose
+- turn: rotasi badan (derajat) buat efek muter
+Terus bikin Still "CharacterSheet" yang menampilkan 5 ekspresi berjejer,
+render ke out/sheet.png biar aku bisa cek.`;
+
+const promptStoryboard = `Bikin storyboard.md untuk episode baru Halopik: "DNS: Buku Telepon Internet".
+Target penonton: orang awam yang suka tech, bahasa santai, sapa penonton "kamu".
+Durasi 60-75 detik, 8-10 scene.
+
+Per scene tulis: judul + timestamp, Visual, Teks layar, Gag (kalau ada),
+Animasi, VO (1-2 kalimat), SFX. Tandai scene "tanpa Opik".
+Wajib: hook kuat di 3 detik pertama, minimal 1 gag yang konyol,
+dan 1 analogi sehari-hari yang gampang diinget.
+Di akhir tulis naskah VO lengkap + draf caption IG.
+Jangan pakai logo brand asli, dan jangan nyebut nama penonton asli.`;
+
+const promptScene = `Bangun Scene 3 sesuai storyboard.md.
+- Durasi ikut panjang VO baris ke-3 (lihat src/vo.json) + jeda ±1 detik
+- Kartu "Buku Telepon" masuk dengan spring dari bawah
+- Opik di kanan bawah, ekspresi wide pas kata "ribuan", lip-sync dari mouth.json
+- Teks layar besar, jangan masuk safe zone (±250px atas, ±400px bawah)
+Kalau sudah, render still di frame tengah scene ke out/frame.png lalu cek sendiri
+apakah ada elemen yang ketutup atau keluar layar.`;
+
+const sceneCode = `import {spring, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Opik} from '../../shared/Opik';
+
+export const S3PhoneBook: React.FC<{dur: number}> = ({dur}) => {
+  const f = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const pop = spring({frame: f - 6, fps, config: {damping: 12}}); // 0 -> 1, bouncy
+  const fade = interpolate(f, [dur - 8, dur], [1, 0], {extrapolateLeft: 'clamp'});
+  return (
+    <div style={{opacity: fade}}>
+      <Card style={{transform: \`translateY(\${(1 - pop) * 400}px) scale(\${pop})\`}} />
+      <Opik width={420} eyes={f > 40 ? 'wide' : 'open'} mouth={talk(2, f)} />
+    </div>
+  );
+};`;
+
+const voScript = `Waduh, yang komen Hermes banyak banget! Berarti banyak yang mau belajar bareng nih.
+Tadinya aku D M satu-satu, tapi makin banyak, aku cape. Jadi ini tutorialnya. Halopik!
+Pertama, siapin V P S, RAM minimal 2 G B. Aku pakai Sumo Pod, server Tensen, enam puluh ribu sebulan.
+Habis itu, top-up Dip Sik pakai kartu debit atau bank digital, mulai dua dolar. Terus, bikin A P I key.`;
+
+const durCode = `// Tiap scene minimal sekian frame, tapi melar mengikuti panjang VO-nya.
+const SCENES: [React.FC<{dur: number}>, number][] = [
+  [S1Hook, 170],
+  [S2Dm, 200],
+  [S3Vps, 400],
+];
+const HOLD = 1.0; // detik jeda setelah VO selesai, biar penonton napas
+export const DURS = SCENES.map(([, min], i) =>
+  Math.max(min, Math.ceil((vo.durations[i] + HOLD) * 30)));`;
+---
+
+<TutorialLayout
+  title="Cara Bikin Animasi ala Halopik pakai AI"
+  eyebrow="Tutorial · Behind the scene"
+  description="Semua yang aku pelajari bikin serial reel Halopik: animasi 2D yang 100% ditulis pakai kode bareng AI coding agent di terminal, dari ide, storyboard, karakter, voice over TTS, sampai video siap upload. Nggak perlu jago gambar, nggak perlu After Effects."
+  cover={cover}
+  coverAlt="Opik melambai di samping judul Bikin Animasi pakai Kode + AI"
+  meta={["🎬 Remotion (React)", "🤖 Claude Code / Codex / Gemini CLI", "🗣️ TTS gratis", "💻 macOS · Windows · Linux"]}
+  toc={toc}
+>
+  <!-- Cerita -->
+  <section id="cerita" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Halopik itu dibikin pakai apa?</h2>
+    <p>
+      Pertanyaan yang paling sering masuk: <em>"Bang, animasinya pakai aplikasi apa?"</em> Jawabannya agak aneh: <strong>pakai kode</strong>. Setiap frame Halopik adalah komponen React yang dirender jadi video oleh <a href="https://www.remotion.dev" target="_blank" rel="noopener">Remotion</a>. Karakter Opik itu SVG, gerakannya rumus, suaranya TTS, musik dan SFX-nya di-generate pakai Python.
+    </p>
+    <p>
+      Dan yang nulis kodenya? Sebagian besar <strong>AI coding agent</strong> di terminal. Aku yang jadi sutradara: nentuin cerita, gag, dan ngecek hasilnya. Sampai sekarang sudah 18 episode jalan dengan cara ini.
+    </p>
+    <Shots
+      shots={[
+        { src: ep00, alt: "Halopik #00: 1 orang 11 aktivitas, banyak Opik berjejer", caption: "#00 Perkenalan" },
+        { src: ep01, alt: "Halopik #01: DevOps tidak sama dengan SRE", caption: "#01 DevOps vs SRE" },
+        { src: ep02, alt: "Halopik #02: aku punya 9 karyawan, semuanya AI", caption: "#02 Kantor AI-ku" },
+        { src: ep04, alt: "Halopik #04: 2 game jadi 1", caption: "#04 Reverse engineering" },
+        { src: ep05, alt: "Halopik #05: vibe coding", caption: "#05 Vibe coding" },
+        { src: ep07, alt: "Halopik #07: hampir 5 jam jadi 48 detik", caption: "#07 Optimasi import" },
+      ]}
+    />
+    <Figure src={pipeline} alt="Alur produksi: ide, storyboard.md, vo-script.txt, TTS, Remotion, MP4 9:16" caption="Satu episode = enam tahap. Tutorial ini ngikutin urutan yang sama." />
+  </section>
+
+  <!-- Alat -->
+  <section id="alat" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Alat &amp; biaya</h2>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Alat</th><th>Buat apa</th><th>Biaya</th></tr></thead>
+        <tbody>
+          <tr><td><strong>AI coding agent</strong> (Claude Code, Codex CLI, Gemini CLI, Antigravity, dll.)</td><td>Nulis &amp; benerin kode animasi, storyboard, script</td><td>Langganan AI-nya (ada yang punya tier gratis)</td></tr>
+          <tr><td><strong>Node.js 22+</strong></td><td>Menjalankan Remotion</td><td>Gratis</td></tr>
+          <tr><td><strong>Remotion</strong></td><td>Render React jadi MP4</td><td>Gratis untuk individu &amp; tim kecil (cek lisensinya)</td></tr>
+          <tr><td><strong>Python 3</strong> + edge-tts</td><td>Voice over (TTS), musik &amp; SFX</td><td>Gratis</td></tr>
+          <tr><td>VS Code (opsional)</td><td>Ngintip &amp; edit file</td><td>Gratis</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Komputer biasa sudah cukup. Aku pakai MacBook, tapi semua langkah di bawah jalan juga di Windows dan Linux. RAM 8 GB oke, 16 GB lebih nyaman waktu render.</p>
+  </section>
+
+  <!-- 1 Terminal -->
+  <Step n="1" title="Siapin terminal, Node.js & Python" id="terminal" time="±15 menit">
+    <p>Terminal adalah tempat kamu ngobrol sama AI agent dan menjalankan perintah. Jangan takut, kamu cuma perlu hafal beberapa perintah.</p>
+    <ul>
+      <li><strong>macOS:</strong> buka aplikasi <em>Terminal</em> (Cmd+Space, ketik "Terminal").</li>
+      <li><strong>Windows:</strong> pakai <em>Windows Terminal</em> + PowerShell (sudah bawaan Windows 11). Mau lebih mulus, pakai WSL (Ubuntu di dalam Windows).</li>
+      <li><strong>Linux:</strong> kamu sudah tahu caranya 😉</li>
+    </ul>
+    <p>
+      Install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> versi LTS (22 atau lebih baru), <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">Python 3</a>, dan <a href="https://git-scm.com" target="_blank" rel="noopener">Git</a>. Di macOS paling gampang lewat Homebrew:
+    </p>
+    <Cmd label="macOS (Homebrew)" code={`brew install node python git`} />
+    <Cmd label="Windows (PowerShell)" lang="powershell" code={`winget install OpenJS.NodeJS.LTS
+winget install Python.Python.3.12
+winget install Git.Git`} />
+    <p>Tutup lalu buka lagi terminal-nya, lalu cek semuanya sudah kepasang:</p>
+    <Cmd code={`node -v      # v22.x atau lebih baru
+python3 --version   # Windows: py --version
+git --version`} />
+    <Callout type="tip">Lima perintah yang paling sering aku pakai: <code>cd nama-folder</code> (masuk folder), <code>cd ..</code> (keluar folder), <code>ls</code> (lihat isi folder, di PowerShell juga bisa), <code>mkdir nama</code> (bikin folder), dan panah atas (ulang perintah sebelumnya).</Callout>
+  </Step>
+
+  <!-- 2 Agent -->
+  <Step n="2" title="Install AI coding agent di terminal" id="agent" time="±10 menit">
+    <p>
+      AI coding agent itu AI yang bisa <strong>baca file, nulis kode, dan menjalankan perintah</strong> di komputer kamu, bukan cuma ngasih jawaban di chat. Halopik aku bikin pakai <strong>Claude Code</strong>, tapi alurnya sama untuk agent lain. Pilih satu:
+    </p>
+    <h3>Claude Code (yang aku pakai)</h3>
+    <Cmd label="macOS / Linux / WSL" code={`curl -fsSL https://claude.ai/install.sh | bash`} />
+    <Cmd label="Windows PowerShell" lang="powershell" code={`irm https://claude.ai/install.ps1 | iex`} />
+    <p>Butuh langganan Claude (Pro/Max) atau API key Anthropic. Jalankan <code>claude</code> sekali untuk login.</p>
+    <h3>Alternatif</h3>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Agent</th><th>Install</th><th>Jalankan</th></tr></thead>
+        <tbody>
+          <tr><td>OpenAI Codex CLI</td><td><code>npm install -g @openai/codex</code></td><td><code>codex</code></td></tr>
+          <tr><td>Gemini CLI</td><td><code>npm install -g @google/gemini-cli</code></td><td><code>gemini</code></td></tr>
+          <tr><td>Google Antigravity</td><td>Download IDE-nya dari antigravity.google</td><td>Buka folder project, pakai panel agent</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <Callout type="info">Instruksi di tutorial ini ditulis sebagai <em>prompt</em> (bahasa manusia), jadi bisa dipakai di agent mana pun. Yang beda cuma nama file aturan mainnya: Claude Code baca <code>CLAUDE.md</code>, Codex baca <code>AGENTS.md</code>, Gemini CLI baca <code>GEMINI.md</code>.</Callout>
+  </Step>
+
+  <!-- 3 Project -->
+  <Step n="3" title="Bikin project + tulis aturan main" id="project" time="±15 menit">
+    <p>Bikin folder kosong, masuk, lalu panggil agent-nya:</p>
+    <Cmd code={`mkdir storyku && cd storyku
+claude`} />
+    <p>Prompt pertama: minta dia nyiapin kerangka project. Perhatikan kalimat terakhir, minta <strong>rencana dulu</strong> sebelum dia bikin file.</p>
+    <Cmd label="prompt" lang="text" code={promptScaffold} />
+    <p>
+      Lalu bikin file <strong>aturan main</strong> di root project. Ini trik paling penting: file ini dibaca agent di setiap sesi, jadi kamu nggak perlu ngulang-ngulang "jangan lupa lucu", "formatnya 9:16", dst. Ini versi ringkas punyaku:
+    </p>
+    <Cmd label="CLAUDE.md" lang="markdown" code={claudeMd} />
+    <Callout type="tip">Setiap kali kamu ngoreksi hal yang sama dua kali, tambahkan ke file ini. Lama-lama agent kamu "kenal" gaya serial kamu.</Callout>
+  </Step>
+
+  <!-- 4 Karakter -->
+  <Step n="4" title="Desain karakter (sekali, dipakai selamanya)" id="karakter" time="±1–3 jam iterasi">
+    <p>
+      Karakter adalah aset paling berharga. Opik ditulis sebagai satu komponen SVG yang ekspresi dan posenya diatur lewat <em>props</em>. Jadi di episode mana pun, cukup tulis <code>{"<Opik eyes=\"wide\" mouth=\"o\" />"}</code>.
+    </p>
+    <Cmd label="prompt" lang="text" code={promptKarakter} />
+    <Figure src={expressions} alt="Lima ekspresi Opik: normal, senang, kaget, cape, ngedip" caption="Dirender langsung dari komponen Opik: satu karakter, lima ekspresi." />
+    <p>Cara iterasinya:</p>
+    <ol>
+      <li>Minta agent render <strong>still</strong> (gambar satu frame) ke PNG.</li>
+      <li>Buka gambarnya, kasih feedback spesifik: <em>"kacamatanya kegedean 20%, jambulnya kurang tinggi, outline tangan kiri putus"</em>.</li>
+      <li>Ulangi. Kalau punya foto/sketsa referensi, kasih ke agent (Claude Code bisa baca gambar: drag file ke terminal).</li>
+    </ol>
+    <Callout type="lol">Versi pertama Opik kepalanya kotak dan tangannya kayak sedotan. Butuh belasan putaran feedback sampai jadi seperti sekarang. Wajar, sabar aja.</Callout>
+  </Step>
+
+  <!-- Prompting -->
+  <section id="prompting" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Seni nyuruh AI (prompting)</h2>
+    <p>Kualitas animasi kamu ditentukan oleh kualitas arahan kamu. Anggap agent itu animator junior yang jago banget ngoding tapi nggak bisa baca pikiran.</p>
+    <div class="grid sm:grid-cols-2 gap-4 my-6">
+      <div class="rounded-2xl border border-red-500/50 bg-red-500/10 p-5">
+        <p class="kanit-bold mb-2!">❌ Kurang jelas</p>
+        <p class="font-mono text-sm mb-0!">"Bikin scene 3 lebih bagus dan lucu."</p>
+      </div>
+      <div class="rounded-2xl border border-emerald-500/50 bg-emerald-500/10 p-5">
+        <p class="kanit-bold mb-2!">✅ Jelas</p>
+        <p class="font-mono text-sm mb-0!">"Scene 3: pas kata 'enam puluh ribu', papan harga goyang kayak geleng-geleng (rotate ±12° 3x) + SFX boing. Opik eyes=wide."</p>
+      </div>
+    </div>
+    <ol>
+      <li><strong>Kasih konteks:</strong> siapa penonton, durasi, format, gaya.</li>
+      <li><strong>Pecah jadi kecil:</strong> satu scene per prompt, jangan satu episode sekaligus.</li>
+      <li><strong>Minta rencana dulu</strong> untuk perubahan besar ("jelasin dulu sebelum ngubah file").</li>
+      <li><strong>Pakai angka:</strong> detik, piksel, derajat, warna hex. "Agak ke kanan" itu ambigu, "geser 80px ke kanan" itu jelas.</li>
+      <li><strong>Suruh dia ngecek sendiri:</strong> "render still di frame 120 lalu periksa ada yang ketutup atau nggak".</li>
+      <li><strong>Simpan pelajaran</strong> ke file aturan main, biar nggak kejadian lagi di episode berikutnya.</li>
+    </ol>
+  </section>
+
+  <!-- 5 Storyboard -->
+  <Step n="5" title="Tulis storyboard (bareng AI)" id="storyboard" time="±30–60 menit">
+    <p>
+      Sebelum satu baris kode animasi ditulis, cerita harus beres dulu di <code>storyboard.md</code>. Aku biasanya datang bawa ide kasar + poin-poin fakta, lalu minta agent nyusun storyboard-nya, terus aku revisi.
+    </p>
+    <Cmd label="prompt" lang="text" code={promptStoryboard} />
+    <p>Contoh satu scene dari storyboard Halopik #03:</p>
+    <Cmd label="storyboard.md (potongan)" lang="markdown" code={`## SCENE 1: HOOK (0:00–0:05)
+
+- **Visual:** Opik santai minum kopi, HP di meja. HP bergetar terus, banner
+  notifikasi "viewers commented: Hermes" turun bertumpuk.
+- **Teks layar:** "Yang komen HERMES…" lalu "BANYAK BANGET 😭🙌"
+- **Gag:** HP getarnya makin kencang sampai jalan sendiri di meja, nyaris jatuh.
+  Opik nangkep dengan dive lebay ala kiper (slow-motion), lalu tetap nyembur kopi.
+- **VO:** "Waduh, yang komen Hermes banyak banget! Berarti banyak yang mau belajar bareng nih."
+- **SFX:** notif makin cepat, getar bzzz, whoosh slow-mo, semburan pfft.`} />
+    <Shots
+      shots={[
+        { src: gagHook, alt: "Opik dive menangkap HP slow motion", caption: "Gag yang ditulis di storyboard…" },
+        { src: gagCape, alt: "Opik tumbang setelah DM ke-64", caption: "…jadi nyata di video." },
+      ]}
+    />
+    <h3>Checklist storyboard yang bagus</h3>
+    <ul>
+      <li><strong>Hook 3 detik pertama.</strong> Orang scroll cepat; mulai dari momen paling menarik.</li>
+      <li><strong>Gag ditulis eksplisit</strong>: scene mana, apa lucunya, SFX apa. "Nanti dibikin lucu" = nggak akan lucu.</li>
+      <li><strong>Karakter nggak harus di setiap scene.</strong> Sesekali biarkan layar penuh infografis.</li>
+      <li><strong>Teks layar besar</strong> dan tetap kebaca tanpa suara (banyak yang nonton di-mute).</li>
+      <li><strong>Safe zone</strong>: kosongkan ±250px atas dan ±400px bawah (ketutup UI Instagram).</li>
+      <li><strong>Cek fakta</strong> harga, angka, perintah. Tulis sumbernya di catatan produksi.</li>
+    </ul>
+    <Shots
+      shots={[
+        { src: ep01info, alt: "Infografis perbandingan DevOps dan SRE", caption: "Scene infografis, Opik cuma nongol kecil" },
+        { src: ep04info, alt: "Infografis alur reverse engineering", caption: "Alur langkah demi langkah" },
+        { src: ep08, alt: "Infografis vertical vs horizontal scaling", caption: "Perbandingan berdampingan" },
+      ]}
+    />
+  </Step>
+
+  <!-- 6 VO -->
+  <Step n="6" title="Voice over pakai TTS" id="vo" time="±15 menit">
+    <p>
+      Pindahkan VO dari storyboard ke <code>vo-script.txt</code>: <strong>satu baris = satu scene</strong>. Tulis kata asing sesuai bunyinya biar TTS bahasa Indonesia nggak salah baca:
+    </p>
+    <Cmd label="vo-script.txt" lang="text" code={voScript} />
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Kata asli</th><th>Risiko dibaca TTS</th><th>Tulis di vo-script</th></tr></thead>
+        <tbody>
+          <tr><td>VPS</td><td>"vips"</td><td><code>V P S</code></td></tr>
+          <tr><td>DeepSeek</td><td>"de-ep-se-ek"</td><td><code>Dip Sik</code></td></tr>
+          <tr><td>Tencent</td><td>"ten-sen-t"</td><td><code>Tensen</code></td></tr>
+          <tr><td>Nevacloud</td><td>"neva-klo-ud"</td><td><code>Neva klaud</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Install <strong>edge-tts</strong> (gratis, suara neural Microsoft, butuh internet), lalu coba satu baris:</p>
+    <Cmd code={`python3 -m venv .venv
+.venv/bin/pip install edge-tts          # Windows: .venv\\Scripts\\pip install edge-tts
+
+.venv/bin/edge-tts --list-voices | grep id-ID
+.venv/bin/edge-tts --voice id-ID-ArdiNeural --rate=+25% \\
+  --text "Halo, aku Opik. Halopik!" --write-media vo1.mp3`} />
+    <p>
+      Suara cowok <code>id-ID-ArdiNeural</code> dipakai Halopik episode #00–#08, ceweknya <code>id-ID-GadisNeural</code>. Rate <code>+25%</code> bikin tempo pas buat reel; lebih cepat dari itu mulai kedengaran buru-buru.
+    </p>
+    <p>Lalu minta agent bikin script yang membaca <code>vo-script.txt</code>, generate <code>vo1.mp3 … voN.mp3</code>, dan mencatat durasi tiap klip ke <code>vo.json</code>:</p>
+    <Cmd label="prompt" lang="text" code={`Bikin script vo.py: baca vo-script.txt, generate satu MP3 per baris pakai edge-tts
+(id-ID-ArdiNeural, +25%) ke public/vo/voN.mp3. Simpan durasi tiap klip ke src/vo.json.
+Hitung juga loudness tiap frame (30 fps) ke src/mouth.json buat lip-sync.
+Klip yang teksnya nggak berubah jangan di-generate ulang.`} />
+    <Figure src={lipsync} alt="Grafik loudness per frame dipetakan ke bentuk mulut smile, grin, open" caption="mouth.json: makin keras suaranya, makin lebar mulut Opik." />
+    <Callout type="info" title="Level lanjut: suara sendiri">
+      Sejak #09, Halopik pakai clone suara asliku dengan model open-source <a href="https://github.com/k2-fsa/OmniVoice" target="_blank" rel="noopener">OmniVoice</a> yang jalan lokal (butuh rekaman referensi ±10–20 detik). Hasilnya lebih "aku", tapi lebih lambat dan kadang ada kalimat yang kelewat, jadi tiap baris harus didengerin ulang. Pakai cuma suara kamu sendiri atau yang sudah kasih izin.
+    </Callout>
+  </Step>
+
+  <!-- 7 Animasi -->
+  <Step n="7" title="Animasikan scene di Remotion" id="animasi" time="±2–6 jam per episode">
+    <p>Inti Remotion: <strong>video = fungsi dari nomor frame</strong>. Tiap komponen tahu sekarang frame ke berapa, lalu menghitung posisi, ukuran, dan opacity dari situ.</p>
+    <Cmd label="contoh scene (disederhanakan)" lang="tsx" code={sceneCode} />
+    <ul>
+      <li><code>spring()</code> bikin gerakan memantul (bouncy), ini yang bikin animasi terasa hidup.</li>
+      <li><code>interpolate()</code> memetakan rentang frame ke nilai, mis. fade out di 8 frame terakhir.</li>
+      <li>Durasi scene <strong>ikut panjang VO</strong>, jadi kalau naskah berubah, video menyesuaikan sendiri:</li>
+    </ul>
+    <Cmd label="Video.tsx" lang="tsx" code={durCode} />
+    <p>Kerjakan scene satu per satu dengan prompt yang spesifik:</p>
+    <Cmd label="prompt" lang="text" code={promptScene} />
+    <p>Buka preview interaktif di browser untuk ngecek timing:</p>
+    <Cmd code={`npx remotion studio`} />
+    <Callout type="tip">Loop paling efektif: agent bikin scene → render still → <strong>kamu lihat</strong> → feedback pakai angka → ulang. Agent juga bisa lihat gambar hasil render-nya sendiri, jadi minta dia cek dulu sebelum lapor "sudah beres".</Callout>
+  </Step>
+
+  <!-- 8 Audio -->
+  <Step n="8" title="Musik & SFX" id="audio" time="±30 menit">
+    <p>
+      Biar bebas masalah hak cipta, musik chiptune dan semua SFX Halopik (pop, boing, ding, krik-krik jangkrik, record scratch) di-generate pakai Python + numpy. Iya, jangkriknya juga sintetis 🦗.
+    </p>
+    <Cmd label="prompt" lang="text" code={`Bikin scripts/make-audio.py pakai numpy: musik chiptune 120 BPM ceria, panjang sesuai
+total durasi video, plus SFX: pop, boing, ding, whoosh, krik-krik jangkrik, record scratch.
+Simpan WAV ke public/music dan public/sfx. Lalu pasang SFX di tiap scene sesuai storyboard,
+dan kecilkan musik otomatis waktu ada VO. Matikan musik total pas gag krik-krik.`} />
+    <p>Mau lebih gampang? Pakai musik/SFX bebas royalti (YouTube Audio Library, Pixabay) dan taruh di <code>public/</code>.</p>
+  </Step>
+
+  <!-- 9 Render -->
+  <Step n="9" title="Render & upload" id="render" time="±5–15 menit">
+    <Cmd code={`npx remotion render MyEpisode out/halopik-01.mp4 --crf=18
+npx remotion still Cover out/cover.png      # gambar cover feed`} />
+    <ol>
+      <li>Tonton hasil render <strong>sampai habis</strong>, sekali dengan suara, sekali tanpa suara.</li>
+      <li>Cek di HP: teks kebaca? Ada yang ketutup UI Instagram?</li>
+      <li>Upload sebagai Reels, pasang cover, tulis caption (minta draf-nya ke agent sekalian).</li>
+    </ol>
+  </Step>
+
+  <!-- Pelajaran -->
+  <section id="pelajaran" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Pelajaran dari 18 episode</h2>
+    <ul>
+      <li><strong>Kasih napas.</strong> Tambah jeda ±1 detik setelah VO tiap scene. Tanpa itu, video terasa ngos-ngosan.</li>
+      <li><strong>60–75 detik itu sweet spot.</strong> Lebih dari 90 detik, banyak yang keburu scroll.</li>
+      <li><strong>Lucu itu direncanakan.</strong> Episode yang gag-nya ditulis di storyboard selalu lebih rame dari yang "nanti aja".</li>
+      <li><strong>Satu suara cukup.</strong> Kata bahasa Inggris tulis sesuai bunyi, jangan ganti-ganti suara TTS di tengah video.</li>
+      <li><strong>Jangan pamer logo brand, jangan sebut nama penonton.</strong> Gambar generik + tulisan nama sudah cukup.</li>
+      <li><strong>Bukti asli itu kuat.</strong> Flash screenshot asli 1–2 detik bikin tutorial lebih dipercaya.</li>
+      <li><strong>Komponen yang kepakai dua kali, pindah ke <code>shared/</code>.</strong> Episode ke-10 jauh lebih cepat dari episode pertama.</li>
+      <li><strong>Commit ke Git setiap episode beres.</strong> Kalau agent bikin kacau, tinggal balik.</li>
+    </ul>
+    <Callout type="lol">Episode pertama butuh berhari-hari. Sekarang satu episode bisa beres dalam sehari, dan waktu paling lama justru habis buat mikirin gag-nya, bukan ngoding.</Callout>
+    <p>
+      Selamat bikin serial kamu sendiri! Kalau jadi, tag <a href="https://instagram.com/taufiqtab" target="_blank" rel="noopener">@taufiqtab</a> di Instagram, aku pengen lihat 🙌
+    </p>
+    <div class="flex flex-wrap gap-3 mt-4">
+      <Button href="/tutorial/setup-hermes" class="space-btn-filled">
+        Lihat juga: Setup Kantor AI pakai Hermes <ArrowRight class="w-5 h-5 fill-current ml-3" />
+      </Button>
+    </div>
+  </section>
+</TutorialLayout>

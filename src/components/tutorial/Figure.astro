@@ -1,0 +1,25 @@
+---
+// Full-width image (diagram, real screenshot) with an optional caption.
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+type Props = { src: ImageMetadata; alt: string; caption?: string; eager?: boolean; narrow?: boolean };
+const { src, alt, caption, eager = false, narrow = false } = Astro.props;
+---
+
+<figure class={`my-6 mx-auto ${narrow ? "max-w-md" : "w-full"}`}>
+  <Image
+    src={src}
+    alt={alt}
+    width={narrow ? 480 : 1024}
+    loading={eager ? "eager" : "lazy"}
+    class="w-full rounded-2xl! border border-gray-500/30 shadow-lg"
+  />
+  {
+    caption && (
+      <figcaption class="kanit-light text-xs text-center mt-2 opacity-80 text-balance">
+        {caption}
+      </figcaption>
+    )
+  }
+</figure>

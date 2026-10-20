@@ -84,6 +84,10 @@ const siteConfig: SiteConfig = {
             href: "/skill"
         },
         {
+            text: 'Tutorial',
+            href: '/tutorial'
+        },
+        {
             text: 'About',
             href: '/about'
         },

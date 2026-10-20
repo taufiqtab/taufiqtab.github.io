@@ -1,0 +1,25 @@
+---
+// Boxed note. `type` picks the icon and accent color.
+type Props = { type?: "tip" | "warn" | "info" | "lol"; title?: string };
+const { type = "info", title } = Astro.props;
+const look = {
+  tip: { icon: "💡", cls: "border-emerald-500/60 bg-emerald-500/10" },
+  warn: { icon: "⚠️", cls: "border-amber-500/70 bg-amber-500/10" },
+  info: { icon: "📌", cls: "border-sky-500/60 bg-sky-500/10" },
+  lol: { icon: "🤣", cls: "border-pink-500/60 bg-pink-500/10" },
+}[type];
+---
+
+<aside class={`tut-callout my-6 rounded-2xl border-l-4 px-5 py-4 text-left ${look.cls}`}>
+  {
+    title && (
+      <p class="kanit-bold mb-1!">
+        {look.icon} {title}
+      </p>
+    )
+  }
+  <div class="kanit-light text-sm sm:text-base">
+    {!title && <span class="mr-1">{look.icon}</span>}
+    <slot />
+  </div>
+</aside>
