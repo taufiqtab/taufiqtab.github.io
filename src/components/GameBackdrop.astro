@@ -1,0 +1,217 @@
+---
+// Game-style decoration behind every page: pixel-art sprites, floating isometric
+// blocks, drifting pixel clouds and a pixel ground strip. Sprites are SVG symbols
+// defined once and placed with <use>; layout is seeded by the URL so every page
+// looks different but stable. Coins at the screen edges can be collected, and
+// the meadow at the bottom has animals to feed and trees to shake.
+import Meadow from "./Meadow.astro";
+
+// --- pixel sprites: rows of palette keys ('.' = transparent) ---------------
+type Pixel = { rows: string[]; pal: Record<string, string> };
+const PIXEL: Record<string, Pixel> = {
+  coin: {
+    rows: ["..1111..", ".122221.", "12233221", "12232221", "12232221", "12233221", ".122221.", "..1111.."],
+    pal: { "1": "#b45309", "2": "#fbbf24", "3": "#fef3c7" },
+  },
+  heart: {
+    rows: [".11.11.", "1221221", "1222221", ".12221.", "..121..", "...1..."],
+    pal: { "1": "#9f1239", "2": "#fb7185" },
+  },
+  star: {
+    rows: ["...1...", "...2...", "..222..", "1222221", "..222..", "...2...", "...1..."],
+    pal: { "1": "#fde68a", "2": "#f59e0b" },
+  },
+  gem: {
+    rows: [".11111.", "1223321", "1222221", ".12221.", "..121..", "...1..."],
+    pal: { "1": "#5b21b6", "2": "#a78bfa", "3": "#ede9fe" },
+  },
+  chest: {
+    rows: ["11111111", "12222221", "13333331", "12244221", "12222221", "12222221", "11111111"],
+    pal: { "1": "#5b3a1a", "2": "#b45309", "3": "#78350f", "4": "#fbbf24" },
+  },
+  slime: {
+    rows: ["...11...", "..1221..", ".122221.", "12322321", "12222221", "12244221", "11111111"],
+    pal: { "1": "#166534", "2": "#4ade80", "3": "#14532d", "4": "#86efac" },
+  },
+  cloud: {
+    rows: [".....1111.......", "...11222211.....", "..1222222221111.", ".122222222222221", "1222222222222221", ".11111111111111."],
+    pal: { "1": "#93c5fd", "2": "#eff6ff" },
+  },
+  // meadow critters (facing right)
+  chicken: {
+    rows: ["....66...", "...1221..", "...12315.", "11.1222..", "1222222..", "1222221..", ".12221...", "..7.7...."],
+    pal: { "1": "#9ca3af", "2": "#ffffff", "3": "#111111", "5": "#f59e0b", "6": "#ef4444", "7": "#f59e0b" },
+  },
+  cat: {
+    rows: ["1.......1.1", "1......1111", "1......1313", ".1111111111", ".1222222221", ".1222222221", ".1.1....1.1", ".1.1....1.1"],
+    pal: { "1": "#0b0b0f", "2": "#2b2b33", "3": "#facc15" }, // black cat, yellow eyes
+  },
+  tree: {
+    rows: ["....1111....", "..11222211..", ".1222232221.", "122232222221", "122222232221", "122322222221", ".1222222321.", "..11222211..", "....1441....", ".....44.....", ".....44.....", ".....44.....", "....4444...."],
+    pal: { "1": "#166534", "2": "#22c55e", "3": "#86efac", "4": "#78350f" },
+  },
+  grain: {
+    rows: ["1.1", ".1.", "1.1"],
+    pal: { "1": "#d97706" },
+  },
+};
+
+function pixelSymbol(id: string, p: Pixel) {
+  const w = p.rows[0].length, h = p.rows.length;
+  let rects = "";
+  p.rows.forEach((row, y) => [...row].forEach((c, x) => { if (p.pal[c]) rects += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${p.pal[c]}"/>`; }));
+  return `<symbol id="gb-${id}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">${rects}</symbol>`;
+}
+
+// --- isometric blocks (2:1 projection, 32x36 box) -------------------------
+const isoCube = (id: string, top: string, left: string, right: string, extra = "") =>
+  `<symbol id="gb-${id}" viewBox="0 0 32 36"><polygon points="16,2 30,9 16,16 2,9" fill="${top}"/><polygon points="2,9 16,16 16,34 2,27" fill="${left}"/><polygon points="30,9 16,16 16,34 30,27" fill="${right}"/>${extra}</symbol>`;
+const SYMBOLS =
+  Object.entries(PIXEL).map(([k, p]) => pixelSymbol(k, p)).join("") +
+  isoCube("grass", "#7ec850", "#9a6b3f", "#7a5230", `<polygon points="2,9 16,16 16,20 2,13" fill="#5fa83a"/><polygon points="30,9 16,16 16,20 30,13" fill="#4d8f2f"/>`) +
+  isoCube("crate", "#d6a35c", "#b7813f", "#946231", `<path d="M4 12 L14 17 M4 22 L14 27 M18 17 L28 12 M18 27 L28 22" stroke="#6b4423" stroke-width="1.4"/>`) +
+  isoCube("ice", "#e0f2fe", "#7dd3fc", "#38bdf8", `<polygon points="16,5 24,9 16,13 8,9" fill="#fff" opacity=".6"/>`);
+
+// --- seeded layout per page -------------------------------------------------
+let seed = [...Astro.url.pathname].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 233280, 17);
+const r = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+const pick = <T,>(arr: T[]) => arr[Math.floor(r() * arr.length)];
+
+type Item = { kind: string; x: number; y: number; size: number; anim: string; delay: number; dur: number; op: number };
+const items: Item[] = [];
+// clouds along the edges (partly off-screen), so they never sit behind text or buttons
+for (let i = 0; i < 4; i++)
+  items.push({ kind: "cloud", x: i % 2 ? 84 + r() * 8 : -6 + r() * 8, y: 4 + i * 23 + r() * 10, size: 110 + r() * 100, anim: "gb-drift", delay: -r() * 40, dur: 38 + r() * 30, op: 0.75 });
+// small sprites mostly in the side gutters
+const kinds = ["star", "star", "heart", "gem", "chest", "slime", "grass", "crate", "ice"];
+for (let i = 0; i < 14; i++) {
+  const kind = pick(kinds);
+  const left = r() < 0.5;
+  const iso = ["grass", "crate", "ice"].includes(kind);
+  items.push({
+    kind,
+    x: left ? 1 + r() * 9 : 88 + r() * 9,
+    y: 6 + (i / 14) * 88 + r() * 4,
+    size: iso ? 38 + r() * 26 : 24 + r() * 18,
+    anim: kind === "star" ? "gb-twinkle" : "gb-bob",
+    delay: -r() * 6,
+    dur: 3 + r() * 3,
+    op: 0.9,
+  });
+}
+// collectable coins, at the very edges
+const coins = Array.from({ length: 5 }, (_, i) => ({ x: r() < 0.5 ? 1.5 + r() * 2 : 95 + r() * 2.5, y: 10 + i * 18 + r() * 8 }));
+---
+
+<div class="gb" aria-hidden="true">
+  <svg width="0" height="0" style="position:absolute"><defs><Fragment set:html={SYMBOLS} /></defs></svg>
+  {
+    items.map((it) => (
+      <svg
+        class={`gb-sprite ${it.anim}${it.kind === "cloud" ? " gb-cloud" : ""}`}
+        style={`left:${it.x.toFixed(2)}%;top:${it.y.toFixed(2)}%;width:${it.size.toFixed(0)}px;opacity:${it.op};animation-delay:${it.delay.toFixed(2)}s;animation-duration:${it.dur.toFixed(1)}s`}
+      >
+        <use href={`#gb-${it.kind}`} />
+      </svg>
+    ))
+  }
+</div>
+
+<div class="gb-coins">
+  {
+    coins.map((c, i) => (
+      <button
+        type="button"
+        class="gb-coin"
+        style={`left:${c.x.toFixed(2)}%;top:${c.y.toFixed(2)}%;animation-delay:-${(i * 0.23).toFixed(2)}s`}
+        aria-label="Ambil koin"
+        title="Ambil koin!"
+      >
+        <svg viewBox="0 0 8 8" aria-hidden="true"><use href="#gb-coin" /></svg>
+      </button>
+    ))
+  }
+</div>
+
+<Meadow />
+
+<div class="gb-hud" data-gb-hud hidden>
+  <svg viewBox="0 0 8 8" aria-hidden="true"><use href="#gb-coin" /></svg>
+  <span>×</span><b data-gb-count>0</b>
+</div>
+
+<script>
+  const KEY = "opik-coins";
+  const read = () => { try { return Number(localStorage.getItem(KEY)) || 0; } catch { return 0; } };
+  const write = (n: number) => { try { localStorage.setItem(KEY, String(n)); } catch {} };
+
+  function showHud(n: number, bump = false) {
+    const hud = document.querySelector<HTMLElement>("[data-gb-hud]");
+    if (!hud) return;
+    hud.hidden = n === 0;
+    hud.querySelector("[data-gb-count]")!.textContent = String(n);
+    if (bump) { hud.classList.remove("bump"); void hud.offsetWidth; hud.classList.add("bump"); }
+  }
+
+  // one delegated listener for every page (the coins are re-rendered on each page)
+  document.addEventListener("click", (e) => {
+    const coin = (e.target as HTMLElement).closest<HTMLButtonElement>(".gb-coin");
+    if (!coin || coin.classList.contains("got")) return;
+    coin.classList.add("got");
+    const n = read() + 1;
+    write(n);
+    showHud(n, true);
+    setTimeout(() => coin.remove(), 700);
+  });
+
+  showHud(read());
+  document.addEventListener("swup:page:view", () => showHud(read()));
+</script>
+
+<style is:global>
+  /* decoration layer: spans the full viewport width behind the page content */
+  .gb, .gb-coins {
+    position: absolute; top: 0; bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%);
+    pointer-events: none; overflow: hidden;
+  }
+  .gb { z-index: -1; }
+  .gb-coins { z-index: 15; }
+  .gb-sprite { position: absolute; height: auto; overflow: visible; will-change: transform; animation-iteration-count: infinite; animation-direction: alternate; animation-timing-function: ease-in-out; }
+  .gb-sprite:not(.gb-cloud) { filter: drop-shadow(0 4px 0 rgb(0 0 0 / 0.08)); }
+  @keyframes gb-bob { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-12px) rotate(3deg); } }
+  @keyframes gb-twinkle { from { transform: scale(0.75); opacity: 0.35; } to { transform: scale(1.1); opacity: 1; } }
+  @keyframes gb-drift { from { transform: translateX(-30px); } to { transform: translateX(40px); } }
+
+  .gb-coin {
+    position: absolute; width: 26px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer;
+    pointer-events: auto; animation: gb-spin 1.6s steps(8) infinite;
+    filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.15));
+  }
+  .gb-coin svg { width: 100%; height: 100%; }
+  .gb-coin.got { animation: gb-got 0.7s ease-out forwards; pointer-events: none; }
+  .gb-coin.got::after {
+    content: "+1"; position: absolute; left: 50%; top: -6px; transform: translateX(-50%);
+    font: 700 12px Menlo, Consolas, monospace; color: #b45309;
+  }
+  @keyframes gb-spin { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.15); } }
+  @keyframes gb-got { to { transform: translateY(-40px) scale(1.2); opacity: 0; } }
+
+  .gb-hud {
+    position: fixed; left: 1rem; bottom: 1rem; z-index: 30; display: flex; align-items: center; gap: 0.35rem;
+    padding: 0.35rem 0.75rem 0.35rem 0.5rem; border-radius: 0.6rem; border: 2px solid #fde68a;
+    background: rgb(27 21 48 / 0.9); color: #fde68a; box-shadow: 0 3px 0 rgb(0 0 0 / 0.3);
+    font: 700 0.85rem Menlo, Consolas, monospace;
+  }
+  .gb-hud[hidden] { display: none; }
+  .gb-hud svg { width: 18px; height: 18px; }
+  .gb-hud.bump { animation: gb-bump 0.3s ease-out; }
+  @keyframes gb-bump { 50% { transform: scale(1.18); } }
+
+  @media (max-width: 639px) {
+    .gb-sprite { opacity: 0.3 !important; scale: 0.6; }
+    .gb-coin { width: 20px; height: 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gb-sprite, .gb-coin { animation: none !important; }
+  }
+</style>

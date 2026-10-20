@@ -10,7 +10,7 @@ period: "2022"
 company: "Erajaya Group"
 platform: "Web App"
 award: "Juara 3 Erajaya Achievement Award"
-tags: ["laravel", "php", "data-visualization"]
+tags: ["laravel", "php", "data-visualization", "competition"]
 ---
 
 ## Ringkasan

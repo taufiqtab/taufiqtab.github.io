@@ -79,7 +79,7 @@ const channels = [
       <p class="kanit-bold -mt-2 mb-3! opacity-70">Taufiq Abdullah</p>
       <p class="kanit-light text-balance">{about?.text}</p>
       <div class="mb-6 flex flex-wrap gap-2">
-        {badges.map((b) => <span class="rounded-full border border-gray-500/40 bg-gray-500/5 px-3 py-1 text-xs sm:text-sm">{b}</span>)}
+        {badges.map((b) => <span class="rounded-full border border-gray-500/40 bg-white px-3 py-1 text-xs sm:text-sm">{b}</span>)}
       </div>
       <div class="flex flex-wrap gap-3">
         <Button href="#contact" class="space-btn-filled">Hubungi Saya</Button>
@@ -96,7 +96,7 @@ const channels = [
     <div class="mt-6 grid gap-4 text-left sm:grid-cols-2 lg:grid-cols-4">
       {
         focus.map((f) => (
-          <div class="flex flex-col rounded-2xl border border-gray-500/25 bg-gray-500/5 p-5">
+          <div class="surface flex flex-col rounded-2xl border border-gray-500/25 p-5">
             <span class="mb-3 text-3xl">{f.icon}</span>
             <h3 class="kanit-bold text-lg">{f.title}</h3>
             <p class="mb-4! text-sm font-light opacity-80">{f.text}</p>
@@ -112,7 +112,7 @@ const channels = [
   <!-- contact -->
   <section id="contact" class="mx-auto mb-8 w-full max-w-5xl scroll-mt-28 px-4">
     <div
-      class="grid gap-8 rounded-3xl border border-gray-500/25 bg-gradient-to-br from-amber-300/25 via-transparent to-space-red/20 p-6 text-left sm:p-10 md:grid-cols-2 dark:from-amber-300/10 dark:to-space-red/25"
+      class="grid gap-8 surface rounded-3xl border border-gray-500/25 bg-gradient-to-br from-amber-50 via-white to-rose-50 p-6 text-left sm:p-10 md:grid-cols-2 dark:from-amber-300/10 dark:to-space-red/25"
     >
       <div class="min-w-0">
         <h2 class="sigmar-ff text-balance pt-0!">{contactInfo?.title}</h2>
@@ -129,7 +129,7 @@ const channels = [
                   target={c.href.startsWith("http") ? "_blank" : undefined}
                   rel={c.href.startsWith("http") ? "noopener" : undefined}
                   title={c.label === "Email" ? contactInfo?.email?.email : c.label}
-                  class="contact-tile flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-gray-500/25 bg-space-sand/80 transition hover:-translate-y-1 hover:shadow-lg dark:bg-black/40"
+                  class="contact-tile flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-gray-500/25 bg-white transition hover:-translate-y-1 hover:shadow-lg dark:bg-black/40"
                   style={c.icon ? `--c:${c.icon.color};--cd:${c.icon.darkColor}` : undefined}
                 >
                   {c.icon && (

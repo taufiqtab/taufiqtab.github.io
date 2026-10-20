@@ -32,6 +32,8 @@ html,
 body {
   @apply mx-0 my-auto min-h-screen p-0 text-base;
   overscroll-behavior: none;
+  /* the game backdrop spans 100vw; never let it cause a horizontal scrollbar */
+  overflow-x: clip;
 }
 
 html.dark body {
@@ -44,9 +46,10 @@ html.dark body {
 }
 
 html.light body {
-  /* background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); */
-  background-image: linear-gradient(180deg, #fdfcfb 0%, #fdfcfb 100%);
-  @apply bg-space-sand bg-cover bg-no-repeat text-black;
+  /* faint pixel dot grid behind the game decorations */
+  background-image: radial-gradient(rgb(67 67 67 / 0.07) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  @apply bg-space-sand text-black;
 }
 
 /* semantic elements */
@@ -119,6 +122,17 @@ html.dark a:not(.button-link):hover {
   @apply text-space-yellow;
 }
 
+/* opaque card surface: keeps cards readable over the game backdrop (cheaper than backdrop blur) */
+/* in the components layer so utilities (hover:shadow-xl, bg-gradient…) still win */
+@layer components {
+  .surface {
+    background-color: #ffffff;
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 6px 18px rgb(0 0 0 / 0.06);
+  }
+}
+
 .page-content {
   @apply my-12 w-full px-4 text-center;
 }
@@ -134,7 +148,18 @@ html.dark a:not(.button-link):hover {
 }
 
 @media (orientation: portrait) {
-  .page-content {
+  /* opaque card surface: keeps cards readable over the game backdrop (cheaper than backdrop blur) */
+/* in the components layer so utilities (hover:shadow-xl, bg-gradient…) still win */
+@layer components {
+  .surface {
+    background-color: #ffffff;
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 6px 18px rgb(0 0 0 / 0.06);
+  }
+}
+
+.page-content {
     text-align: left;
   }
 }

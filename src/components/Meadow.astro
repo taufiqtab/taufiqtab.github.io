@@ -1,0 +1,213 @@
+---
+// A little living meadow at the bottom of every page: critters wander around,
+// clicking the meadow drops food they walk over to eat, and tapping a tree a few
+// times scares a bird out of it.
+// Sprites (#gb-chicken, #gb-cat, #gb-tree, #gb-grain, #gb-heart) come from GameBackdrop.
+let seed = [...Astro.url.pathname].reduce((a, c) => (a * 37 + c.charCodeAt(0)) % 233280, 29);
+const r = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+
+const trees = [{ x: 4 + r() * 14 }, { x: 72 + r() * 20 }];
+const critters = [
+  { kind: "chicken", w: 9, h: 8, start: 0.2 + r() * 0.15, speed: 45 },
+  { kind: "chicken", w: 9, h: 8, start: 0.55 + r() * 0.15, speed: 40 },
+  { kind: "cat", w: 11, h: 8, start: 0.35 + r() * 0.2, speed: 70 },
+];
+---
+
+<div class="meadow" data-meadow>
+  <div class="meadow-ground"></div>
+  {
+    trees.map((t) => (
+      <button type="button" class="meadow-tree" style={`left:${t.x.toFixed(1)}%`} aria-label="Goyangkan pohon">
+        <svg viewBox="0 0 12 13" aria-hidden="true"><use href="#gb-tree" /></svg>
+      </button>
+    ))
+  }
+  {
+    critters.map((c) => (
+      <div class="critter" data-start={c.start.toFixed(3)} data-speed={c.speed} style={`--w:${c.w * 4}px;--h:${c.h * 4}px`} aria-hidden="true">
+        <svg class="critter-body" viewBox={`0 0 ${c.w} ${c.h}`}><use href={`#gb-${c.kind}`} /></svg>
+      </div>
+    ))
+  }
+</div>
+
+<script>
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const BIRD = `<svg viewBox="0 0 20 10" aria-hidden="true"><path d="M1 4 Q5 -1 10 5 Q15 -1 19 4" /></svg>`;
+
+  type Critter = { el: HTMLElement; body: HTMLElement; x: number; speed: number; dir: number; target: number | null; food: Food | null; pauseUntil: number; nextWander: number };
+  type Food = { el: HTMLElement; x: number; ready: boolean; claimed: boolean };
+
+  function initMeadow() {
+    const root = document.querySelector<HTMLElement>("[data-meadow]");
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = "1";
+
+    const width = () => root.clientWidth;
+    const critters: Critter[] = Array.from(root.querySelectorAll<HTMLElement>(".critter")).map((el) => ({
+      el,
+      body: el.querySelector<HTMLElement>(".critter-body")!,
+      x: Number(el.dataset.start) * width(),
+      speed: Number(el.dataset.speed),
+      dir: Math.random() < 0.5 ? -1 : 1,
+      target: null,
+      food: null,
+      pauseUntil: 0,
+      nextWander: performance.now() + 1000 + Math.random() * 3000,
+    }));
+    const foods: Food[] = [];
+
+    const draw = (c: Critter) => {
+      c.el.style.transform = `translateX(${c.x.toFixed(1)}px)`;
+      c.body.style.transform = `scaleX(${c.dir})`;
+    };
+    critters.forEach(draw);
+
+    function heart(x: number) {
+      const h = document.createElement("span");
+      h.className = "meadow-heart";
+      h.style.left = x + "px";
+      h.innerHTML = `<svg viewBox="0 0 7 6"><use href="#gb-heart" /></svg>`;
+      root!.append(h);
+      setTimeout(() => h.remove(), 900);
+    }
+
+    // one loop for every critter; it only runs while the meadow is on screen
+    let visible = false, last = 0, raf = 0;
+    function tick(t: number) {
+      if (!root!.isConnected) return;
+      const dt = Math.min(0.05, (t - (last || t)) / 1000);
+      last = t;
+      const w = width();
+      for (const c of critters) {
+        if (t < c.pauseUntil) continue;
+        if (!c.food) {
+          const free = foods.filter((f) => f.ready && !f.claimed).sort((a, b) => Math.abs(a.x - c.x) - Math.abs(b.x - c.x))[0];
+          if (free) { free.claimed = true; c.food = free; c.target = free.x; }
+          else if (c.target === null && t > c.nextWander) {
+            c.target = Math.max(20, Math.min(w - 40, c.x + (Math.random() - 0.5) * 320));
+            c.nextWander = t + 2500 + Math.random() * 4500;
+          }
+        }
+        if (c.target === null) { c.el.classList.remove("walking"); continue; }
+        const dx = c.target - c.x;
+        if (Math.abs(dx) < 3) {
+          c.target = null;
+          c.el.classList.remove("walking");
+          if (c.food) {
+            c.food.el.remove();
+            foods.splice(foods.indexOf(c.food), 1);
+            c.food = null;
+            heart(c.x + c.el.offsetWidth / 2);
+            c.pauseUntil = t + 900;
+          }
+          continue;
+        }
+        c.dir = Math.sign(dx);
+        c.x += c.dir * Math.min(Math.abs(dx), c.speed * dt * (c.food ? 1.6 : 1));
+        c.el.classList.add("walking");
+        draw(c);
+      }
+      raf = visible ? requestAnimationFrame(tick) : 0;
+    }
+    new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !raf && !reduce) { last = 0; raf = requestAnimationFrame(tick); }
+    }).observe(root);
+
+    // click the meadow: food drops where you clicked and lands on the ground
+    root.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest(".meadow-tree")) return;
+      if (foods.length >= 6) return;
+      const box = root.getBoundingClientRect();
+      const x = e.clientX - box.left, y = e.clientY - box.top;
+      const el = document.createElement("span");
+      el.className = "meadow-food";
+      el.style.left = x - 6 + "px";
+      el.style.top = y - 6 + "px";
+      el.innerHTML = `<svg viewBox="0 0 3 3"><use href="#gb-grain" /></svg>`;
+      root.append(el);
+      const food: Food = { el, x: x - 16, ready: false, claimed: false };
+      foods.push(food);
+      requestAnimationFrame(() => { el.style.top = ""; el.classList.add("landed"); });
+      setTimeout(() => (food.ready = true), 450);
+      if (reduce) setTimeout(() => { el.remove(); foods.splice(foods.indexOf(food), 1); }, 1500);
+    });
+
+    // tap a tree a few times and a bird flies out of it
+    root.querySelectorAll<HTMLButtonElement>(".meadow-tree").forEach((tree) => {
+      let taps = 0, need = 2 + Math.floor(Math.random() * 3);
+      tree.addEventListener("click", () => {
+        tree.classList.remove("shake");
+        void tree.offsetWidth;
+        tree.classList.add("shake");
+        if (++taps < need) return;
+        taps = 0;
+        need = 2 + Math.floor(Math.random() * 3);
+        const b = document.createElement("span");
+        b.className = "meadow-bird" + (Math.random() < 0.5 ? " to-left" : "");
+        b.style.left = tree.offsetLeft + tree.offsetWidth / 2 - 14 + "px";
+        b.style.bottom = tree.offsetHeight + 20 + "px";
+        b.innerHTML = BIRD;
+        root.append(b);
+        setTimeout(() => b.remove(), 2600);
+      });
+    });
+  }
+
+  initMeadow();
+  // swup swaps <main> without a full reload, so re-run on every page view
+  document.addEventListener("swup:page:view", initMeadow);
+</script>
+
+<style is:global>
+  .meadow {
+    position: absolute; bottom: 0; left: 50%; width: 100vw; height: 140px; transform: translateX(-50%);
+    z-index: 16; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .meadow-ground {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 44px; pointer-events: none;
+    background:
+      repeating-linear-gradient(90deg, #7ec850 0 12px, #6fbb45 12px 24px) top / 100% 10px no-repeat,
+      repeating-linear-gradient(90deg, #5fa83a 0 6px, transparent 6px 18px) 0 10px / 100% 4px no-repeat,
+      radial-gradient(#7a5230 1.5px, transparent 1.6px) 0 14px / 16px 10px,
+      #9a6b3f;
+    box-shadow: inset 0 -6px 0 rgb(0 0 0 / 0.12);
+  }
+
+  .meadow-tree {
+    position: absolute; bottom: 36px; width: 72px; height: 78px; padding: 0; border: 0; background: none; cursor: pointer;
+    transform-origin: 50% 100%;
+  }
+  .meadow-tree svg { width: 100%; height: 100%; filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.12)); }
+  .meadow-tree.shake { animation: meadow-shake 0.45s ease-in-out; }
+  @keyframes meadow-shake { 20% { rotate: -5deg; } 40% { rotate: 4deg; } 60% { rotate: -3deg; } 80% { rotate: 2deg; } }
+
+  .critter { position: absolute; left: 0; bottom: 40px; width: var(--w); height: var(--h); pointer-events: none; will-change: transform; }
+  .critter-body { width: 100%; height: 100%; }
+  .critter.walking .critter-body { animation: critter-hop 0.28s steps(2) infinite; }
+  @keyframes critter-hop { 50% { translate: 0 -3px; } }
+
+  .meadow-food { position: absolute; bottom: 40px; width: 12px; height: 12px; pointer-events: none; transition: top 0.45s cubic-bezier(0.5, 0, 1, 0.6); }
+  .meadow-food svg { width: 100%; height: 100%; }
+  .meadow-food.landed { top: calc(100% - 52px); }
+
+  .meadow-heart { position: absolute; bottom: 74px; width: 18px; height: 16px; pointer-events: none; transform: translateX(-50%); animation: meadow-heart 0.9s ease-out forwards; }
+  .meadow-heart svg { width: 100%; height: 100%; }
+  @keyframes meadow-heart { to { translate: 0 -30px; opacity: 0; } }
+
+  .meadow-bird { position: absolute; width: 28px; height: 14px; pointer-events: none; }
+  .meadow-bird svg { width: 100%; height: 100%; fill: none; stroke: #334155; stroke-width: 2; stroke-linecap: round; animation: bird-flap 0.25s ease-in-out infinite alternate; transform-origin: 50% 50%; }
+  @keyframes bird-flap { to { transform: scaleY(-0.5); } }
+  .meadow-bird { animation: bird-escape 2.6s ease-out forwards; }
+  .meadow-bird.to-left { animation-name: bird-escape-left; }
+  @keyframes bird-escape { to { transform: translate(260px, -360px); opacity: 0; } }
+  @keyframes bird-escape-left { to { transform: translate(-260px, -360px); opacity: 0; } }
+
+
+  @media (prefers-reduced-motion: reduce) {
+    .meadow-tree.shake, .critter.walking .critter-body, .meadow-bird svg, .meadow-heart { animation: none; }
+    .meadow-food { transition: none; }
+  }
+</style>

@@ -4,6 +4,7 @@ import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import Subscribe from "../components/Subscribe.astro";
+import GameBackdrop from "../components/GameBackdrop.astro";
 import { withBase } from "../utils/helpers";
 import siteConfig from "../site.config";
 
@@ -23,7 +24,7 @@ const {
 ---
 
 <!doctype html>
-<html lang="en" class="antialiased break-words">
+<html lang="en" class="light antialiased break-words">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -48,7 +49,9 @@ const {
     <title>{pageTitle}</title>
   </head>
   <body>
-    <main class:list={["mx-auto min-h-screen", wide ? "max-w-7xl" : "max-w-3xl"]}>
+    <!-- relative + z-0: stacking context so the game backdrop can sit behind the content -->
+    <main class:list={["relative z-0 mx-auto min-h-screen", wide ? "max-w-7xl" : "max-w-3xl"]}>
+      <GameBackdrop />
       <Nav activePage={activePage} />
       <slot />
       {showSubscribeForm && <Subscribe class="my-12 w-full" />}
