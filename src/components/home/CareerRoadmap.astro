@@ -1,0 +1,759 @@
+---
+// Career timeline as a game-style level map. Opik walks the path to the
+// selected checkpoint and an RPG-style dialog shows the details.
+// Two layouts: winding left→right on desktop, bottom→top on mobile.
+import { Image } from "astro:assets";
+import opik from "../../assets/images/opik-halopik.png";
+import { timeline } from "../../data/timeline";
+
+type Pt = [number, number];
+type Layout = {
+  W: number;
+  H: number;
+  pts: Pt[];
+  start: Pt;
+  end: Pt;
+  bridgeAt: number; // river crosses between checkpoint i and i+1
+  landmarks: { kind: "campus" | "studio" | "office"; node: number; side: 1 | -1 }[];
+};
+
+const n = timeline.length;
+// screen-space bounds of each landmark sprite around its ground point
+const LANDMARK_BOX: Record<string, [number, number, number, number]> = {
+  campus: [-66, -100, 66, 54],
+  studio: [-56, -66, 56, 48],
+  office: [-62, -150, 62, 56],
+};
+const desktop: Layout = {
+  W: 1100,
+  H: 560,
+  pts: timeline.map((_, i) => [110 + (i * 880) / (n - 1), 290 + 165 * Math.sin(i * 0.95 + 0.4)]),
+  start: [20, 470],
+  end: [1080, 120],
+  bridgeAt: 4,
+  landmarks: [
+    { kind: "campus", node: 1, side: -1 },
+    { kind: "studio", node: 4, side: 1 },
+    { kind: "office", node: 9, side: -1 },
+  ],
+};
+const mobile: Layout = {
+  W: 400,
+  H: 1240,
+  pts: timeline.map((_, i) => [200 + 115 * Math.sin(i * 1.2 + 0.3), 1140 - (i * 1040) / (n - 1)]),
+  start: [230, 1230],
+  end: [140, 20],
+  bridgeAt: 4,
+  landmarks: [
+    { kind: "campus", node: 1, side: -1 },
+    { kind: "studio", node: 4, side: 1 },
+    { kind: "office", node: 9, side: 1 },
+  ],
+};
+
+// --- geometry helpers ---------------------------------------------------
+const add = (a: Pt, b: Pt): Pt => [a[0] + b[0], a[1] + b[1]];
+const sub = (a: Pt, b: Pt): Pt => [a[0] - b[0], a[1] - b[1]];
+const mul = (a: Pt, k: number): Pt => [a[0] * k, a[1] * k];
+const f = (v: number) => v.toFixed(1);
+
+// Catmull-Rom spline through the points, as cubic Béziers + dense samples
+function spline(points: Pt[]) {
+  let d = `M${f(points[0][0])} ${f(points[0][1])}`;
+  const samples: Pt[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i], p1 = points[i], p2 = points[i + 1], p3 = points[i + 2] ?? p2;
+    const c1 = add(p1, mul(sub(p2, p0), 1 / 6)), c2 = sub(p2, mul(sub(p3, p1), 1 / 6));
+    d += ` C${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(p2[0])} ${f(p2[1])}`;
+    for (let t = 0; t < 1; t += 0.05) {
+      const u = 1 - t;
+      samples.push([
+        u * u * u * p1[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * p2[0],
+        u * u * u * p1[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * p2[1],
+      ]);
+    }
+  }
+  return { d, samples };
+}
+
+function rng(seed: number) {
+  let s = seed;
+  return () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+}
+
+const near = (p: Pt, list: Pt[], dist: number) => list.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < dist);
+
+function buildMap(L: Layout, seed: number) {
+  const r = rng(seed);
+  const road = spline([L.start, ...L.pts, L.end]);
+
+  // river: crosses the road on the curve halfway between two checkpoints.
+  // Each spline segment has 20 samples and segment 0 is START → first checkpoint.
+  const at = (L.bridgeAt + 1) * 20 + 10;
+  const mid: Pt = road.samples[at];
+  const dir = sub(road.samples[at + 1], road.samples[at - 1]), len = Math.hypot(dir[0], dir[1]);
+  const tan: Pt = [dir[0] / len, dir[1] / len], nor: Pt = [-tan[1], tan[0]];
+  const reach = Math.max(L.W, L.H);
+  const riverPts: Pt[] = [-1.2, -0.7, -0.3, 0, 0.3, 0.7, 1.2].map((k, i) =>
+    add(add(mid, mul(nor, k * reach * 0.55)), mul(tan, i % 2 ? 28 : -28)),
+  );
+  riverPts[3] = mid;
+  const river = spline(riverPts);
+  const bridgeAngle = (Math.atan2(tan[1], tan[0]) * 180) / Math.PI;
+
+  // landmarks: scan the map for the free spot closest to their checkpoint where
+  // the whole sprite (bounding box) stays clear of road, river, checkpoints and
+  // the other landmarks
+  type Box = [number, number, number, number];
+  const boxAt = (k: string, [x, y]: Pt): Box => { const b = LANDMARK_BOX[k]; return [x + b[0], y + b[1], x + b[2], y + b[3]]; };
+  const overlap = (a: Box, b: Box) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  // occupancy grid (4-unit cells) of everything a building must not cover
+  const C = 4, gw = Math.ceil(L.W / C) + 1, gh = Math.ceil(L.H / C) + 1;
+  const busy = new Uint8Array(gw * gh);
+  const stamp = (pts: Pt[], rad: number) => {
+    for (const [px, py] of pts)
+      for (let gx = Math.max(0, Math.floor((px - rad) / C)); gx <= Math.min(gw - 1, Math.ceil((px + rad) / C)); gx++)
+        for (let gy = Math.max(0, Math.floor((py - rad) / C)); gy <= Math.min(gh - 1, Math.ceil((py + rad) / C)); gy++)
+          if (Math.hypot(gx * C - px, gy * C - py) <= rad) busy[gy * gw + gx] = 1;
+  };
+  stamp(road.samples, 26);
+  stamp(river.samples, 30);
+  stamp(L.pts, 34);
+  const free = ([x0, y0, x1, y1]: Box) => {
+    for (let gx = Math.floor(x0 / C); gx <= Math.ceil(x1 / C); gx++)
+      for (let gy = Math.floor(y0 / C); gy <= Math.ceil(y1 / C); gy++) if (busy[gy * gw + gx]) return false;
+    return true;
+  };
+  const placed: { kind: string; at: Pt; box: Box }[] = [];
+  for (const m of L.landmarks) {
+    const target = L.pts[m.node];
+    const candidates: Pt[] = [];
+    for (let x = 0; x <= L.W; x += 8) for (let y = 0; y <= L.H; y += 8) candidates.push([x, y]);
+    candidates.sort((a, b) => Math.hypot(a[0] - target[0], a[1] - target[1]) - Math.hypot(b[0] - target[0], b[1] - target[1]));
+    for (const c of candidates) {
+      const box = boxAt(m.kind, c);
+      if (box[0] < 6 || box[1] < 6 || box[2] > L.W - 6 || box[3] > L.H - 6) continue;
+      if (placed.some((p) => overlap(box, p.box)) || !free(box)) continue;
+      placed.push({ kind: m.kind, at: c, box });
+      break;
+    }
+  }
+  const landmarks = placed;
+
+  // scatter decor, keeping clear of road, river, checkpoints and landmarks
+  const blockers = [...road.samples, ...river.samples];
+  const decor: { kind: string; at: Pt; s: number }[] = [];
+  const kinds = ["pine", "pine", "pine", "tree", "bush", "rock", "flowers"];
+  for (let i = 0; i < 900 && decor.length < (L.W > L.H ? 95 : 85); i++) {
+    const at: Pt = [r() * L.W, r() * L.H];
+    if (near(at, blockers, 46) || near(at, L.pts, 70)) continue;
+    if (landmarks.some((l) => at[0] > l.box[0] - 16 && at[0] < l.box[2] + 16 && at[1] > l.box[1] - 8 && at[1] < l.box[3] + 30)) continue;
+    if (near(at, decor.map((d) => d.at), 26)) continue;
+    decor.push({ kind: kinds[Math.floor(r() * kinds.length)], at, s: 0.8 + r() * 0.5 });
+  }
+  const sprites = [...decor, ...landmarks.map((l) => ({ kind: l.kind, at: l.at, s: 1 }))].sort((x, y) => x.at[1] - y.at[1]);
+
+  const tufts: Pt[] = Array.from({ length: Math.round((L.W * L.H) / 3500) }, () => [r() * L.W, r() * L.H]);
+  const fireflies: Pt[] = Array.from({ length: 18 }, () => [r() * L.W, r() * L.H]);
+  return { road, river, mid, bridgeAngle, sprites, tufts, fireflies };
+}
+
+const maps = { desktop: buildMap(desktop, 11), mobile: buildMap(mobile, 23) };
+
+// --- sprite drawing (SVG strings, isometric low-poly) --------------------
+// 2:1 isometric projection around the sprite's ground point.
+const iso = (u: number, v: number, z = 0): Pt => [u - v, (u + v) / 2 - z];
+const poly = (pts: Pt[], cls: string) => `<polygon points="${pts.map((p) => `${f(p[0])},${f(p[1])}`).join(" ")}" class="${cls}"/>`;
+const polyFill = (pts: Pt[], fill: string, extra = "") => `<polygon points="${pts.map((p) => `${f(p[0])},${f(p[1])}`).join(" ")}" fill="${fill}" ${extra}/>`;
+
+// box centred on its footprint; c = [top, left face, right face]
+function isoBox(U: number, V: number, Z: number, c: string[], z0 = 0, u0 = -U / 2, v0 = -V / 2) {
+  const P = (u: number, v: number, z: number) => iso(u0 + u, v0 + v, z0 + z);
+  return (
+    polyFill([P(0, V, 0), P(U, V, 0), P(U, V, Z), P(0, V, Z)], c[1]) +
+    polyFill([P(U, 0, 0), P(U, V, 0), P(U, V, Z), P(U, 0, Z)], c[2]) +
+    polyFill([P(0, 0, Z), P(U, 0, Z), P(U, V, Z), P(0, V, Z)], c[0])
+  );
+}
+// window grid on the two visible faces of a box
+function isoWindows(U: number, V: number, Z: number, rows: number, z0 = 0, u0 = -U / 2, v0 = -V / 2, from = 0.25) {
+  let out = "";
+  const P = (u: number, v: number, z: number) => iso(u0 + u, v0 + v, z0 + z);
+  const rowH = (Z - 4) / rows;
+  for (let r = 0; r < rows; r++) {
+    const z = 4 + r * rowH, h = rowH * 0.5;
+    for (let u = from * 10; u < U - 4; u += 9) out += polyFill([P(u, V, z), P(u + 5, V, z), P(u + 5, V, z + h), P(u, V, z + h)], "", `class="rm-window"`);
+    for (let v = from * 10; v < V - 4; v += 9) out += polyFill([P(U, v, z), P(U, v + 5, z), P(U, v + 5, z + h), P(U, v, z + h)], "", `class="rm-window rm-window-side"`);
+  }
+  return out;
+}
+const plaza = (U: number, V: number) => polyFill([iso(-U / 2, -V / 2), iso(U / 2, -V / 2), iso(U / 2, V / 2), iso(-U / 2, V / 2)], "#d6c7a8", `stroke="#b7a684" stroke-width="2"`);
+const signBoard = (y: number, lines: string[], w: number) =>
+  `<g transform="translate(0 ${y})"><rect x="-1.5" y="0" width="3" height="10" fill="#5b3a1a"/>
+   <rect x="${-w / 2}" y="${-6 - lines.length * 11}" width="${w}" height="${lines.length * 11 + 6}" rx="3" class="rm-sign"/>
+   ${lines.map((l, i) => `<text y="${-4 - (lines.length - 1 - i) * 11}" text-anchor="middle" class="rm-sign-text">${l}</text>`).join("")}</g>`;
+
+function sprite(kind: string, [x, y]: Pt, s: number) {
+  const g = (inner: string) => `<g transform="translate(${f(x)} ${f(y)}) scale(${s.toFixed(2)})">${inner}</g>`;
+  const shadow = (rx: number) => `<ellipse cx="3" cy="1" rx="${rx}" ry="${rx / 2}" class="rm-shadow"/>`;
+  switch (kind) {
+    case "pine": // two-tier low-poly cone
+      return g(shadow(13) + isoBox(5, 5, 9, ["#8d6e63", "#7a5a48", "#5d4037"]) +
+        poly([[0, -50], [-15, -18], [0, -13]], "rm-pine-light") + poly([[0, -50], [0, -13], [15, -18]], "rm-pine-dark") +
+        poly([[0, -36], [-18, -7], [0, -1]], "rm-pine") + poly([[0, -36], [0, -1], [18, -7]], "rm-pine-dark"));
+    case "tree": // faceted round canopy
+      return g(shadow(16) + isoBox(6, 6, 14, ["#8d6e63", "#7a5a48", "#5d4037"]) +
+        poly([[-17, -26], [-9, -42], [3, -45], [0, -27]], "rm-pine-light") +
+        poly([[3, -45], [15, -38], [17, -24], [0, -27]], "rm-pine") +
+        poly([[-17, -26], [0, -27], [17, -24], [8, -12], [-8, -12]], "rm-pine-dark"));
+    case "bush":
+      return g(shadow(11) + poly([[-12, -3], [-7, -14], [2, -16], [0, -5]], "rm-pine-light") + poly([[2, -16], [11, -11], [12, -2], [0, -5]], "rm-pine") + poly([[-12, -3], [0, -5], [12, -2], [0, 2]], "rm-pine-dark"));
+    case "rock":
+      return g(shadow(11) + poly([[-12, -2], [-6, -13], [4, -14], [1, -5]], "rm-rock-light") + poly([[4, -14], [12, -6], [11, 1], [1, -5]], "rm-rock") + poly([[-12, -2], [1, -5], [11, 1], [0, 3]], "rm-rock-dark"));
+    case "flowers":
+      return g(`<circle cx="-5" cy="-2" r="2.6" fill="#f472b6"/><circle cx="3" cy="-5" r="2.6" fill="#fde047"/><circle cx="6" cy="2" r="2.6" fill="#fff"/><circle cx="-1" cy="3" r="2.2" fill="#a78bfa"/>`);
+    case "campus": // STT Terpadu Nurul Fikri: main hall + side wing + flag
+      return g(plaza(116, 92) +
+        isoBox(40, 34, 30, ["#e2e8f0", "#cbd5e1", "#94a3b8"], 0, -50, -14) + isoWindows(40, 34, 30, 2, 0, -50, -14) +
+        isoBox(56, 44, 46, ["#fef3c7", "#fde68a", "#f59e0b"], 0, -8, -30) + isoWindows(56, 44, 46, 3, 0, -8, -30) +
+        isoBox(60, 48, 5, ["#0f766e", "#115e59", "#134e4a"], 46, -10, -32) +
+        polyFill([iso(-8, 14, 0), iso(4, 14, 0), iso(4, 14, 14), iso(-8, 14, 14)], "#7c5a32") +
+        `<line x1="${f(iso(46, -26)[0])}" y1="${f(iso(46, -26)[1])}" x2="${f(iso(46, -26, 82)[0])}" y2="${f(iso(46, -26, 82)[1])}" stroke="#475569" stroke-width="2"/>` +
+        polyFill([iso(46, -26, 82), iso(46, -26, 70), [iso(46, -26, 76)[0] + 18, iso(46, -26, 76)[1]]], "#ef4444") +
+        signBoard(48, ["STT TERPADU", "NURUL FIKRI"], 92));
+    case "studio": // sound stage with a big clapperboard on the roof
+      return g(plaza(96, 80) +
+        isoBox(64, 50, 32, ["#475569", "#334155", "#1e293b"], 0, -32, -25) +
+        polyFill([iso(-32, 25, 6), iso(-6, 25, 6), iso(-6, 25, 24), iso(-32, 25, 24)], "#fbbf24") +
+        isoBox(30, 6, 18, ["#f8fafc", "#e2e8f0", "#cbd5e1"], 32, -15, -3) +
+        `<g transform="translate(${f(iso(0, 0, 50)[0])} ${f(iso(0, 0, 50)[1])}) rotate(-12)"><rect x="-17" y="-12" width="34" height="9" fill="#111"/>${[0, 1, 2, 3].map((i) => `<rect x="${-15 + i * 9}" y="-12" width="4" height="9" fill="#fff" transform="skewX(-25)"/>`).join("")}</g>` +
+        `<text x="${f(iso(0, 0, 41)[0])}" y="${f(iso(0, 0, 41)[1])}" text-anchor="middle" font-family="Kanit, sans-serif" font-weight="800" font-size="9" fill="#111">ACTION!</text>` +
+        signBoard(44, ["STUDIO"], 54));
+    case "office": // three towers of different heights
+      return g(plaza(110, 96) +
+        isoBox(30, 30, 56, ["#cbd5e1", "#94a3b8", "#64748b"], 0, -46, -10) + isoWindows(30, 30, 56, 5, 0, -46, -10) +
+        isoBox(34, 34, 100, ["#e0f2fe", "#7dd3fc", "#0284c7"], 0, -10, -38) + isoWindows(34, 34, 100, 9, 0, -10, -38) +
+        isoBox(8, 8, 14, ["#f1f5f9", "#cbd5e1", "#94a3b8"], 100, 3, -25) +
+        isoBox(26, 26, 38, ["#fde68a", "#fbbf24", "#d97706"], 0, 16, 6) + isoWindows(26, 26, 38, 3, 0, 16, 6) +
+        signBoard(50, ["KOTA"], 46));
+  }
+  return "";
+}
+
+function svgFor(L: Layout, m: (typeof maps)["desktop"], id: string) {
+  const [sx, sy] = L.start, [ex, ey] = L.end;
+  return `
+  <defs>
+    <pattern id="${id}-grass" width="22" height="22" patternUnits="userSpaceOnUse"><rect width="22" height="22" class="rm-grass"/><rect width="11" height="11" class="rm-grass-alt"/><rect x="11" y="11" width="11" height="11" class="rm-grass-alt"/></pattern>
+  </defs>
+  <rect width="${L.W}" height="${L.H}" fill="url(#${id}-grass)"/>
+  ${m.tufts.map(([x, y]) => `<path d="M${f(x)} ${f(y)} l-3 -7 M${f(x)} ${f(y)} l0 -9 M${f(x)} ${f(y)} l3 -7" class="rm-tuft"/>`).join("")}
+  <path d="${m.river.d}" class="rm-river-bank"/><path d="${m.river.d}" class="rm-river"/><path d="${m.river.d}" class="rm-river-shine"/>
+  <path d="${m.road.d}" class="rm-path-edge"/><path d="${m.road.d}" class="rm-path"/><path d="${m.road.d}" class="rm-path-dots"/>
+  <g transform="translate(${f(m.mid[0])} ${f(m.mid[1])}) rotate(${f(m.bridgeAngle)})">
+    <rect x="-34" y="-22" width="68" height="44" rx="4" fill="#8b5a2b" stroke="#5b3a1a" stroke-width="3"/>
+    ${Array.from({ length: 7 }, (_, i) => `<line x1="${-28 + i * 9.3}" y1="-20" x2="${-28 + i * 9.3}" y2="20" stroke="#5b3a1a" stroke-width="2"/>`).join("")}
+    <rect x="-36" y="-26" width="72" height="6" rx="3" fill="#a16207"/><rect x="-36" y="20" width="72" height="6" rx="3" fill="#a16207"/>
+  </g>
+  ${m.sprites.map((s) => sprite(s.kind, s.at, s.s)).join("")}
+  <g transform="translate(${f(sx + (sx < 50 ? 30 : -50))} ${f(sy - (sy > L.H - 40 ? 40 : 30))})">
+    <rect x="-2" y="-6" width="4" height="34" fill="#7c5a32"/><rect x="-30" y="-26" width="60" height="22" rx="4" class="rm-sign"/><text y="-10" text-anchor="middle" class="rm-sign-text">START</text>
+  </g>
+  <g transform="translate(${f(ex + (ex > L.W - 50 ? -30 : 34))} ${f(ey + (ey < 40 ? 44 : 6))})">
+    <rect x="-2" y="-40" width="4" height="44" fill="#475569"/>
+    ${[0, 1, 2, 3].map((c) => [0, 1, 2].map((rr) => `<rect x="${2 + c * 7}" y="${-40 + rr * 7}" width="7" height="7" fill="${(c + rr) % 2 ? "#111" : "#fff"}"/>`).join("")).join("")}
+  </g>
+  <g class="rm-night-only">${m.fireflies.map(([x, y], i) => `<circle cx="${f(x)}" cy="${f(y)}" r="2.4" class="rm-firefly" style="animation-delay:${(i % 6) * 0.5}s"/>`).join("")}</g>`;
+}
+
+const pct = (v: number, of: number) => ((v / of) * 100).toFixed(3) + "%";
+---
+
+<div class="rm" data-roadmap>
+  <div class="rm-map" tabindex="0" aria-label="Peta perjalanan karier, gunakan panah kiri/kanan">
+    <span class="rm-level" data-rm-level>🗺️ START · tekan ▶ untuk main</span>
+    <svg class="rm-svg hidden md:block" viewBox={`0 0 ${desktop.W} ${desktop.H}`} data-layout="desktop" data-w={desktop.W} data-h={desktop.H} aria-hidden="true">
+      <Fragment set:html={svgFor(desktop, maps.desktop, "rmd")} />
+      <path d={maps.desktop.road.d} data-rm-road fill="none" stroke="none" />
+    </svg>
+    <svg class="rm-svg md:hidden" viewBox={`0 0 ${mobile.W} ${mobile.H}`} data-layout="mobile" data-w={mobile.W} data-h={mobile.H} aria-hidden="true">
+      <Fragment set:html={svgFor(mobile, maps.mobile, "rmm")} />
+      <path d={maps.mobile.road.d} data-rm-road fill="none" stroke="none" />
+    </svg>
+
+    {
+      timeline.map((m, i) => {
+        const [dx, dy] = desktop.pts[i], [mx, my] = mobile.pts[i];
+        return (
+          <button
+            type="button"
+            class:list={["rm-node", m.highlight && "is-gold", mx > mobile.W / 2 ? "label-left" : "label-right", i % 2 ? "label-up" : ""]}
+            style={`--dx:${pct(dx, desktop.W)};--dy:${pct(dy, desktop.H)};--mx:${pct(mx, mobile.W)};--my:${pct(my, mobile.H)}`}
+            data-rm-node={i}
+            data-desktop={`${dx},${dy}`}
+            data-mobile={`${mx},${my}`}
+            aria-label={`${m.year}: ${m.title}`}
+          >
+            <span class="rm-stone">{i + 1}</span>
+            <span class="rm-label">
+              <b>{m.year}</b> {m.icon} <span class="rm-label-text">{m.label}</span>
+            </span>
+          </button>
+        );
+      })
+    }
+
+    <div class="rm-player" data-rm-player aria-hidden="true">
+      <Image src={opik} alt="" width={96} class="rm-player-img" />
+    </div>
+
+    <div class="rm-dialog" data-rm-dialog role="dialog" aria-live="polite" hidden>
+      <Image src={opik} alt="" width={120} class="rm-dialog-avatar" />
+      <div class="min-w-0 flex-1">
+        <p class="rm-dialog-meta" data-rm-meta></p>
+        <h3 class="rm-dialog-title" data-rm-title></h3>
+        <p class="rm-dialog-text" data-rm-text></p>
+        <a class="rm-dialog-link" data-rm-link href="#">Lihat project →</a>
+      </div>
+      <button type="button" class="rm-dialog-close" data-rm-close aria-label="Tutup">✕</button>
+      <div class="rm-dialog-timer" data-rm-timer hidden><span></span></div>
+    </div>
+
+    <!-- inside the map (clipped by its frame); JS eases it toward the viewport bottom while scrolling -->
+    <div class="rm-controls" data-rm-controls>
+      <button type="button" class="rm-gbtn" data-rm-prev aria-label="Checkpoint sebelumnya">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M19 5l-9 7 9 7z" /></svg>
+      </button>
+      <button type="button" class="rm-gbtn rm-gbtn-play" data-rm-play aria-label="Mainkan otomatis" aria-pressed="false">
+        <svg class="rm-ico-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z" /></svg>
+        <svg class="rm-ico-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
+      </button>
+      <button type="button" class="rm-gbtn" data-rm-next aria-label="Checkpoint berikutnya">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14M5 5l9 7-9 7z" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <ol class="sr-only">
+    {timeline.map((m) => <li>{m.year}: {m.title}. {m.text}</li>)}
+  </ol>
+  <script type="application/json" data-rm-data set:html={JSON.stringify(timeline)} />
+</div>
+
+<script>
+  type Milestone = { year: string; title: string; text: string; href?: string; label: string; icon: string };
+
+  function initRoadmap() {
+    const root = document.querySelector<HTMLElement>("[data-roadmap]");
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = "1";
+
+    const data: Milestone[] = JSON.parse(root.querySelector("[data-rm-data]")!.textContent || "[]");
+    const map = root.querySelector<HTMLElement>(".rm-map")!;
+    const nodes = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-rm-node]"));
+    const player = root.querySelector<HTMLElement>("[data-rm-player]")!;
+    const dialog = root.querySelector<HTMLElement>("[data-rm-dialog]")!;
+    const level = root.querySelector<HTMLElement>("[data-rm-level]")!;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const desktopMq = window.matchMedia("(min-width: 768px)");
+
+    let current = -1; // -1 = at START
+    let pos = 0; // length along the active path
+    let anim = 0;
+    let geo: { path: SVGPathElement; W: number; H: number; total: number; stops: number[] };
+
+    // measure the visible layout: path length at START and at every checkpoint
+    function measure() {
+      const svg = root!.querySelector<SVGSVGElement>(`svg[data-layout="${desktopMq.matches ? "desktop" : "mobile"}"]`)!;
+      const path = svg.querySelector<SVGPathElement>("[data-rm-road]")!;
+      const total = path.getTotalLength();
+      const key = desktopMq.matches ? "desktop" : "mobile";
+      const steps = 1500;
+      const samples = Array.from({ length: steps + 1 }, (_, i) => {
+        const p = path.getPointAtLength((i / steps) * total);
+        return [p.x, p.y, (i / steps) * total];
+      });
+      const stops = nodes.map((node) => {
+        const [x, y] = node.dataset[key]!.split(",").map(Number);
+        let best = 0, bestD = Infinity;
+        for (const [sx, sy, l] of samples) {
+          const d = (sx - x) ** 2 + (sy - y) ** 2;
+          if (d < bestD) { bestD = d; best = l; }
+        }
+        return best;
+      });
+      geo = { path, W: Number(svg.dataset.w), H: Number(svg.dataset.h), total, stops };
+      pos = current < 0 ? 0 : stops[current];
+      place(pos, 1);
+      if (current >= 0 && !dialog.hidden) showDialog(current, false);
+    }
+
+    function place(l: number, heading: number) {
+      const p = geo.path.getPointAtLength(l);
+      player.style.left = (p.x / geo.W) * 100 + "%";
+      player.style.top = (p.y / geo.H) * 100 + "%";
+      player.style.setProperty("--flip", heading < 0 ? "-1" : "1");
+    }
+
+    function go(i: number): Promise<void> {
+      if (i < 0 || i >= nodes.length) return Promise.resolve();
+      cancelAnimationFrame(anim);
+      hideDialog();
+      current = i;
+      nodes.forEach((n, k) => {
+        n.classList.toggle("is-active", k === i);
+        n.classList.toggle("is-done", k < i);
+      });
+      level.textContent = `LEVEL ${String(i + 1).padStart(2, "0")} / ${nodes.length} · ${data[i].year}`;
+      const from = pos, to = geo.stops[i];
+      const dur = reduce ? 0 : Math.min(2200, Math.max(350, Math.abs(to - from) * 1.1));
+      const t0 = performance.now();
+      player.classList.add("is-walking");
+      return new Promise((arrived) => {
+      const step = (now: number) => {
+        const t = dur ? Math.min(1, (now - t0) / dur) : 1;
+        const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+        pos = from + (to - from) * e;
+        const ahead = geo.path.getPointAtLength(Math.min(geo.total, pos + 2));
+        const here = geo.path.getPointAtLength(Math.max(0, pos - 2));
+        place(pos, (ahead.x - here.x) * (to >= from ? 1 : -1));
+        if (t < 1) anim = requestAnimationFrame(step);
+        else {
+          player.classList.remove("is-walking");
+          showDialog(i);
+          arrived();
+        }
+      };
+      anim = requestAnimationFrame(step);
+      });
+    }
+
+    // --- autoplay: walk START → finish, pausing on each dialog long enough to read it
+    const playBtn = root.querySelector<HTMLButtonElement>("[data-rm-play]")!;
+    const timer = root.querySelector<HTMLElement>("[data-rm-timer]")!;
+    let playToken = 0;
+    let wake: (() => void) | null = null;
+    let wakeTimer = 0;
+
+    const readTime = (m: Milestone) => Math.min(11000, Math.max(4500, 2200 + (m.title.length + m.text.length) * 38));
+    const wait = (ms: number) => new Promise<void>((done) => { wake = done; wakeTimer = window.setTimeout(done, ms); });
+
+    function setPlaying(on: boolean) {
+      playBtn.classList.toggle("is-playing", on);
+      playBtn.setAttribute("aria-pressed", String(on));
+      playBtn.setAttribute("aria-label", on ? "Jeda" : "Mainkan otomatis");
+    }
+
+    function stopAuto() {
+      playToken++;
+      clearTimeout(wakeTimer);
+      wake?.();
+      wake = null;
+      timer.hidden = true;
+      setPlaying(false);
+    }
+
+    function revealNode(i: number) {
+      const r = nodes[i].getBoundingClientRect();
+      if (r.top < 100 || r.bottom > window.innerHeight - 160)
+        nodes[i].scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    }
+
+    async function play() {
+      const token = ++playToken;
+      setPlaying(true);
+      if (current >= nodes.length - 1) {
+        // replay from START
+        current = -1;
+        pos = 0;
+        hideDialog();
+        nodes.forEach((n) => n.classList.remove("is-active", "is-done"));
+        place(0, 1);
+      }
+      for (let i = current + 1; i < nodes.length; i++) {
+        revealNode(i);
+        await go(i);
+        if (token !== playToken) return;
+        const ms = readTime(data[i]);
+        timer.hidden = false;
+        const bar = timer.firstElementChild as HTMLElement;
+        bar.style.animation = "none";
+        void bar.offsetWidth;
+        bar.style.animation = `rm-timer ${ms}ms linear forwards`;
+        await wait(ms);
+        if (token !== playToken) return;
+      }
+      timer.hidden = true;
+      setPlaying(false);
+    }
+
+    function showDialog(i: number, animate = true) {
+      const m = data[i];
+      dialog.querySelector("[data-rm-meta]")!.textContent = `LEVEL ${i + 1} · ${m.year}`;
+      dialog.querySelector("[data-rm-title]")!.textContent = m.title;
+      dialog.querySelector("[data-rm-text]")!.textContent = m.text;
+      const link = dialog.querySelector<HTMLAnchorElement>("[data-rm-link]")!;
+      link.hidden = !m.href;
+      if (m.href) link.href = m.href;
+      dialog.hidden = false;
+
+      // anchor the dialog to the checkpoint, flipping above/below and clamping to the map
+      const node = nodes[i].getBoundingClientRect(), box = map.getBoundingClientRect();
+      const w = dialog.offsetWidth, h = dialog.offsetHeight;
+      const cx = node.left - box.left + node.width / 2, cy = node.top - box.top + node.height / 2;
+      const left = Math.min(Math.max(cx - w / 2, 8), box.width - w - 8);
+      const below = cy + 34 + h < box.height - 8 || cy - 34 - h < 8;
+      dialog.style.left = left + "px";
+      dialog.style.top = (below ? cy + 34 : cy - 34 - h) + "px";
+      if (!animate) return;
+      dialog.classList.remove("pop");
+      void dialog.offsetWidth;
+      dialog.classList.add("pop");
+    }
+
+    function hideDialog() {
+      dialog.hidden = true;
+    }
+
+    const manual = (i: number) => { stopAuto(); go(i); };
+    nodes.forEach((n, i) => n.addEventListener("click", () => (i === current && dialog.hidden ? (stopAuto(), showDialog(i)) : manual(i))));
+    root.querySelector("[data-rm-next]")!.addEventListener("click", () => manual(Math.min(current + 1, nodes.length - 1)));
+    root.querySelector("[data-rm-prev]")!.addEventListener("click", () => manual(Math.max(current - 1, 0)));
+    playBtn.addEventListener("click", () => (playBtn.classList.contains("is-playing") ? stopAuto() : play()));
+    root.querySelector("[data-rm-close]")!.addEventListener("click", () => { stopAuto(); hideDialog(); });
+    map.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); manual(Math.min(current + 1, nodes.length - 1)); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); manual(Math.max(current - 1, 0)); }
+      if (e.key === " ") { e.preventDefault(); playBtn.click(); }
+      if (e.key === "Escape") { stopAuto(); hideDialog(); }
+    });
+    desktopMq.addEventListener("change", measure);
+    let rt = 0;
+    window.addEventListener("resize", () => { clearTimeout(rt); rt = window.setTimeout(() => current >= 0 && !dialog.hidden && showDialog(current, false), 120); });
+    measure();
+
+    // --- controls follow the viewport bottom with easing, clamped inside the map
+    const controls = root.querySelector<HTMLElement>("[data-rm-controls]")!;
+    const PAD = 14;
+    let cy = -1, follow = 0;
+    const targetY = () => {
+      const r = map.getBoundingClientRect(), h = controls.offsetHeight;
+      const max = r.height - h - PAD;
+      return Math.max(PAD, Math.min(max, window.innerHeight - r.top - h - 16));
+    };
+    const tick = () => {
+      follow = 0;
+      if (!root.isConnected) return;
+      const t = targetY();
+      cy = cy < 0 || reduce ? t : cy + (t - cy) * 0.09;
+      if (Math.abs(t - cy) < 0.4) cy = t;
+      controls.style.transform = `translateY(${cy.toFixed(1)}px)`;
+      if (cy !== t) follow = requestAnimationFrame(tick);
+    };
+    const wakeFollow = () => {
+      if (!root.isConnected) return window.removeEventListener("scroll", wakeFollow), window.removeEventListener("resize", wakeFollow);
+      if (!follow) follow = requestAnimationFrame(tick);
+    };
+    window.addEventListener("scroll", wakeFollow, { passive: true });
+    window.addEventListener("resize", wakeFollow);
+    tick();
+  }
+
+  initRoadmap();
+  // swup swaps <main> without a full reload, so re-run on every page view
+  document.addEventListener("swup:page:view", initRoadmap);
+</script>
+
+<style is:global>
+  .rm {
+    --rm-grass: #7ec850;
+    --rm-grass-alt: #78c04b;
+    --rm-tuft: #5fa83a;
+    --rm-path: #e8c48a;
+    --rm-path-edge: #b98a4e;
+    --rm-water: #38b6e8;
+    --rm-water-bank: #2b8fc4;
+    --rm-pine: #2f8f46;
+    --rm-pine-dark: #1f6b35;
+    --rm-pine-light: #57b65f;
+    --rm-shadow: rgb(0 0 0 / 0.18);
+    margin-inline: auto;
+    width: 100%;
+    max-width: 72rem;
+  }
+  html.dark .rm {
+    --rm-grass: #24502f;
+    --rm-grass-alt: #224b2c;
+    --rm-tuft: #1b3f24;
+    --rm-path: #a98a5d;
+    --rm-path-edge: #6e5534;
+    --rm-water: #1d5f8a;
+    --rm-water-bank: #143f5e;
+    --rm-pine: #1a5530;
+    --rm-pine-dark: #113d22;
+    --rm-pine-light: #2c7442;
+    --rm-shadow: rgb(0 0 0 / 0.35);
+  }
+  .rm-grass { fill: var(--rm-grass); }
+  .rm-grass-alt { fill: var(--rm-grass-alt); }
+  .rm-tuft { stroke: var(--rm-tuft); stroke-width: 1.6; fill: none; stroke-linecap: round; }
+  .rm-river-bank { fill: none; stroke: var(--rm-water-bank); stroke-width: 44; stroke-linecap: round; }
+  .rm-river { fill: none; stroke: var(--rm-water); stroke-width: 34; stroke-linecap: round; }
+  .rm-river-shine { fill: none; stroke: #fff; stroke-opacity: 0.35; stroke-width: 2; stroke-dasharray: 10 26; }
+  .rm-path-edge { fill: none; stroke: var(--rm-path-edge); stroke-width: 36; stroke-linecap: round; stroke-linejoin: round; }
+  .rm-path { fill: none; stroke: var(--rm-path); stroke-width: 28; stroke-linecap: round; stroke-linejoin: round; }
+  .rm-path-dots { fill: none; stroke: var(--rm-path-edge); stroke-opacity: 0.35; stroke-width: 3; stroke-dasharray: 2 14; stroke-linecap: round; }
+  .rm-shadow { fill: var(--rm-shadow); }
+  .rm-trunk { fill: #7c5a32; }
+  .rm-pine { fill: var(--rm-pine); }
+  .rm-pine-dark { fill: var(--rm-pine-dark); }
+  .rm-pine-light, .rm-leaf-light { fill: var(--rm-pine-light); }
+  .rm-rock { fill: #9ca3af; }
+  .rm-rock-light { fill: #d1d5db; }
+  .rm-rock-dark { fill: #6b7280; }
+  .rm-window { fill: #bae6fd; }
+  .rm-window-side { fill: #7dd3fc; }
+  html.dark .rm-window { fill: #fde68a; }
+  html.dark .rm-window-side { fill: #fbbf24; }
+  .rm-sign { fill: #8b5a2b; stroke: #5b3a1a; stroke-width: 2; }
+  .rm-sign-text { fill: #fff7e6; font: 800 9px "Kanit", sans-serif; letter-spacing: 0.5px; }
+  .rm-night-only { display: none; }
+  html.dark .rm-night-only { display: inline; }
+  .rm-firefly { fill: #fde047; animation: rm-blink 3s ease-in-out infinite; }
+  @keyframes rm-blink { 50% { opacity: 0.15; } }
+
+  .rm-level {
+    position: absolute; top: 0.75rem; left: 0.75rem; z-index: 3; pointer-events: none;
+    padding: 0.35rem 0.7rem; border-radius: 0.6rem; border: 2px solid #fde68a;
+    background: rgb(27 21 48 / 0.85); color: #fde68a; box-shadow: 0 3px 0 rgb(0 0 0 / 0.35);
+    font: 700 0.72rem/1.2 Menlo, Consolas, monospace; letter-spacing: 0.05em;
+  }
+
+  .rm-controls {
+    position: absolute; top: 0; right: 1rem; z-index: 5; display: flex; align-items: center;
+    gap: 0.6rem; pointer-events: none; will-change: transform;
+  }
+  .rm-gbtn {
+    --b1: #60a5fa; --b2: #2563eb; --edge: #1e3a8a;
+    pointer-events: auto; position: relative; display: grid; place-items: center; cursor: pointer;
+    width: 3.1rem; height: 3.1rem; border-radius: 999px; border: 3px solid #fff;
+    background: radial-gradient(circle at 35% 28%, var(--b1), var(--b2) 70%);
+    box-shadow: 0 5px 0 var(--edge), 0 9px 16px rgb(0 0 0 / 0.35), inset 0 -4px 0 rgb(0 0 0 / 0.15);
+    transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
+  }
+  .rm-gbtn::before {
+    content: ""; position: absolute; top: 12%; left: 22%; width: 38%; height: 22%; border-radius: 999px;
+    background: rgb(255 255 255 / 0.45); filter: blur(1px); pointer-events: none;
+  }
+  .rm-gbtn:hover { filter: brightness(1.08); }
+  .rm-gbtn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--edge), 0 3px 6px rgb(0 0 0 / 0.3), inset 0 -2px 0 rgb(0 0 0 / 0.15); }
+  .rm-gbtn:focus-visible { outline: 3px solid #fde047; outline-offset: 3px; }
+  .rm-gbtn svg { width: 46%; height: 46%; fill: #fff; stroke: #fff; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.25)); }
+  .rm-gbtn-play { --b1: #86efac; --b2: #16a34a; --edge: #14532d; width: 4rem; height: 4rem; }
+  .rm-gbtn-play.is-playing { --b1: #fdba74; --b2: #ea580c; --edge: #7c2d12; }
+  .rm-gbtn-play .rm-ico-pause, .rm-gbtn-play.is-playing .rm-ico-play { display: none; }
+  .rm-gbtn-play.is-playing .rm-ico-pause { display: block; }
+  .rm-gbtn-play:not(.is-playing) { animation: rm-nudge 2.4s ease-in-out infinite; }
+  @keyframes rm-nudge { 0%, 80%, 100% { scale: 1; } 88% { scale: 1.08; } }
+
+  .rm-map {
+    position: relative; overflow: hidden; border-radius: 1.75rem;
+    background: var(--rm-grass); box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+    aspect-ratio: 400 / 1240; outline: none;
+  }
+  /* frame drawn on top instead of as a border, so the box keeps the SVG's exact aspect ratio */
+  .rm-map::after {
+    content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    border: 4px solid #5b3a1a; border-radius: inherit;
+  }
+  .rm-map:focus-visible { box-shadow: 0 0 0 4px #fde047; }
+  .rm-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  @media (min-width: 768px) {
+    .rm-map { aspect-ratio: 1100 / 560; }
+  }
+
+  .rm-node {
+    position: absolute; left: var(--mx); top: var(--my); transform: translate(-50%, -50%);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2;
+    background: none; border: 0; padding: 0;
+  }
+  @media (min-width: 768px) {
+    .rm-node { left: var(--dx); top: var(--dy); }
+  }
+  .rm-stone {
+    display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 999px;
+    font: 800 1rem "Kanit", sans-serif; color: #fff;
+    background: radial-gradient(circle at 35% 30%, #9ca3af, #4b5563 70%);
+    border: 3px solid #e5e7eb; box-shadow: 0 4px 0 #1f2937, 0 6px 10px rgb(0 0 0 / 0.3);
+    text-shadow: 0 2px 0 rgb(0 0 0 / 0.4); transition: transform 0.15s;
+  }
+  .rm-node:hover .rm-stone, .rm-node:focus-visible .rm-stone { transform: scale(1.12); }
+  .rm-node.is-gold .rm-stone { background: radial-gradient(circle at 35% 30%, #fde68a, #d97706 70%); border-color: #fef3c7; box-shadow: 0 4px 0 #78350f, 0 6px 10px rgb(0 0 0 / 0.3); }
+  .rm-node.is-done .rm-stone { background: radial-gradient(circle at 35% 30%, #86efac, #16a34a 70%); box-shadow: 0 4px 0 #14532d, 0 6px 10px rgb(0 0 0 / 0.3); }
+  .rm-node.is-active .rm-stone {
+    background: radial-gradient(circle at 35% 30%, #c4b5fd, #7c3aed 70%); box-shadow: 0 4px 0 #3b0764, 0 0 0 6px rgb(167 139 250 / 0.45);
+    animation: rm-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes rm-pulse { 50% { box-shadow: 0 4px 0 #3b0764, 0 0 0 12px rgb(167 139 250 / 0); } }
+
+  .rm-label {
+    position: absolute; white-space: nowrap; pointer-events: none;
+    font: 600 0.7rem/1 "Kanit", sans-serif; color: #2b1a0a;
+    background: #fff7e6; border: 2px solid #8b5a2b; border-radius: 999px; padding: 0.2rem 0.5rem;
+    box-shadow: 0 2px 0 #8b5a2b;
+  }
+  .rm-node .rm-label { left: calc(100% + 0.4rem); }
+  .rm-node.label-left .rm-label { left: auto; right: calc(100% + 0.4rem); }
+  .rm-label-text { display: none; }
+  @media (min-width: 768px) {
+    .rm-node .rm-label, .rm-node.label-left .rm-label { left: 50%; right: auto; top: calc(100% + 0.45rem); transform: translateX(-50%); }
+    .rm-node.label-up .rm-label { top: auto; bottom: calc(100% + 0.45rem); }
+    .rm-label-text { display: inline; }
+  }
+
+  .rm-player {
+    position: absolute; z-index: 3; width: 3.4rem; height: 3.4rem; pointer-events: none;
+    transform: translate(-50%, -88%);
+  }
+  .rm-player-img {
+    width: 100%; height: 100%; object-fit: cover; object-position: 50% 8%;
+    border-radius: 999px !important; border: 3px solid #fff; background: #fde68a;
+    box-shadow: 0 4px 0 #7c3aed, 0 8px 12px rgb(0 0 0 / 0.35);
+    transform: scaleX(var(--flip, 1));
+  }
+  .rm-player::after {
+    content: ""; position: absolute; left: 50%; bottom: -0.55rem; width: 0; height: 0; transform: translateX(-50%);
+    border: 0.45rem solid transparent; border-top-color: #fff;
+  }
+  .rm-player.is-walking .rm-player-img { animation: rm-bob 0.32s ease-in-out infinite alternate; }
+  @keyframes rm-bob { to { translate: 0 -5px; } }
+
+  .rm-dialog {
+    position: absolute; z-index: 4; width: min(22rem, calc(100% - 16px));
+    display: flex; gap: 0.75rem; align-items: flex-start; text-align: left;
+    padding: 0.85rem 2rem 0.9rem 0.85rem; border-radius: 1rem;
+    background: #1b1530; color: #f5f3ff; border: 3px solid #fde68a;
+    box-shadow: 0 0 0 3px #1b1530, 0 14px 30px rgb(0 0 0 / 0.45);
+  }
+  .rm-dialog[hidden] { display: none; }
+  .rm-dialog.pop { animation: rm-pop 0.22s ease-out; }
+  @keyframes rm-pop { from { opacity: 0; transform: scale(0.9) translateY(6px); } }
+  .rm-dialog-avatar {
+    flex: none; width: 3.5rem; height: 3.5rem; object-fit: cover; object-position: 50% 8%;
+    border-radius: 0.75rem !important; background: #fde68a; border: 2px solid #fde68a;
+  }
+  .rm-dialog-meta { margin: 0 0 0.15rem !important; font: 700 0.65rem Menlo, Consolas, monospace; letter-spacing: 0.1em; color: #fde68a; }
+  .rm-dialog-title { margin: 0 0 0.3rem; font: 700 1rem/1.25 "Kanit", sans-serif; }
+  .rm-dialog-text { margin: 0 0 0.5rem !important; font: 300 0.85rem/1.45 "Kanit", sans-serif; opacity: 0.9; }
+  .rm .rm-dialog-link { font: 600 0.8rem "Kanit", sans-serif; color: #fde68a !important; }
+  .rm .rm-dialog-link:hover { text-decoration: underline; }
+  .rm-dialog-timer { position: absolute; left: 0.85rem; right: 0.85rem; bottom: 0.4rem; height: 4px; border-radius: 999px; background: rgb(255 255 255 / 0.15); overflow: hidden; }
+  .rm-dialog-timer[hidden] { display: none; }
+  .rm-dialog-timer span { display: block; height: 100%; width: 100%; background: #fde68a; }
+  @keyframes rm-timer { to { width: 0; } }
+  .rm-dialog-close { position: absolute; top: 0.4rem; right: 0.6rem; cursor: pointer; color: #c4b5fd; font-size: 0.9rem; background: none; border: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rm-firefly, .rm-node.is-active .rm-stone, .rm-player.is-walking .rm-player-img, .rm-gbtn-play:not(.is-playing) { animation: none; }
+  }
+</style>

@@ -1,41 +1,22 @@
 ---
-import {
-  getAllTags,
-  getPostsByTag,
-  sortItemsByDateDesc,
-  withBase,
-} from "../../utils/helpers";
+import { getAllTags, getPostsByTag, sortItemsByDateDesc } from "../../utils/helpers";
 import { getCollection } from "astro:content";
-import Button from "../../components/Button.astro";
 import MainLayout from "../../layouts/MainLayout.astro";
+import SkillGlobe from "../../components/SkillGlobe.astro";
 import siteConfig from "../../site.config";
 
 const posts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
-const tags = getAllTags(posts).sort((tagA, tagB) => {
-  const postCountTagA = getPostsByTag(posts, tagA.id).length;
-  const postCountTagB = getPostsByTag(posts, tagB.id).length;
-  return postCountTagB - postCountTagA;
-});
+const tags = getAllTags(posts)
+  .map((tag) => ({ ...tag, count: getPostsByTag(posts, tag.id).length }))
+  .sort((a, b) => b.count - a.count);
 ---
 
-<MainLayout
-  activePage="tags"
-  pageTitle={siteConfig.title + " | " + "Tags Index"}
->
-  <div class="page-content">
+<MainLayout activePage="skills" pageTitle={siteConfig.title + " | " + "Skills"} wide>
+  <div class="page-content text-center!">
     <h1 class="sigmar-ff text-balance">Skills</h1>
-    <p class="kanit-regular">Select a skill to view related project.</p>
-    <div class="flex flex-wrap items-center justify-center gap-4">
-      {
-        tags.map((tag) => {
-          const postCount = getPostsByTag(posts, tag.id).length;
-          return (
-            <Button href={`${"/skill/" + tag.id}`} class="px-4! m-2">
-              {tag.name} ({postCount})
-            </Button>
-          );
-        })
-      }
-    </div>
+    <p class="kanit-regular text-balance">
+      {tags.length} teknologi dari {posts.length} project. Putar globenya, pilih skill untuk melihat project terkait.
+    </p>
+    <SkillGlobe tags={tags} />
   </div>
 </MainLayout>

@@ -1,0 +1,167 @@
+---
+// Tags spread over a spinning sphere. Drag/swipe to change the spin direction
+// (with inertia); a tap without dragging opens the tag.
+type Props = { tags: { id: string; name: string; count: number }[] };
+const { tags } = Astro.props;
+const max = Math.max(...tags.map((t) => t.count), 1);
+---
+
+<div class="globe-wrap">
+<div class="globe" data-globe aria-label="Daftar skill, geser untuk memutar">
+  <svg class="globe-grid" viewBox="-100 -100 200 200" aria-hidden="true">
+    <circle r="98" class="globe-ball" />
+    {[-60, -30, 0, 30, 60].map((lat) => <ellipse rx={98 * Math.cos((lat * Math.PI) / 180)} ry={98 * Math.cos((lat * Math.PI) / 180) * 0.18} cy={-98 * Math.sin((lat * Math.PI) / 180)} />)}
+    {[0, 30, 60, 90, 120, 150].map((lon) => <ellipse rx={98 * Math.abs(Math.cos((lon * Math.PI) / 180))} ry="98" />)}
+  </svg>
+  <ul class="globe-tags">
+    {
+      tags.map((t) => {
+        const weight = t.count / max;
+        return (
+          <li>
+            <a
+              href={"/skill/" + t.id}
+              class:list={["globe-tag", weight > 0.5 ? "is-hot" : weight > 0.2 ? "is-warm" : ""]}
+              style={`--fs:${(0.74 + weight * 0.6).toFixed(2)}rem`}
+              draggable="false"
+            >
+              {t.name}
+              <sup>{t.count}</sup>
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+</div>
+</div>
+<p class="kanit-light mt-4 text-center text-sm opacity-70">👆 Geser untuk memutar arah · klik skill untuk melihat project</p>
+
+<script>
+  function initGlobe() {
+    const root = document.querySelector<HTMLElement>("[data-globe]");
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = "1";
+
+    const tags = Array.from(root.querySelectorAll<HTMLAnchorElement>(".globe-tag"));
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const n = tags.length;
+    // Fibonacci sphere: evenly spread points. Tags arrive sorted by count, so walk the
+    // spiral with a stride coprime to n to spread the big tags around the globe.
+    const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+    const stride = [23, 29, 31, 37, 41, 1].find((k) => gcd(k, n) === 1)!;
+    const pts = tags.map((_, t) => {
+      const i = (t * stride) % n;
+      const y = 1 - (i / Math.max(1, n - 1)) * 2;
+      const r = Math.sqrt(1 - y * y);
+      const th = Math.PI * (3 - Math.sqrt(5)) * i;
+      return { x: Math.cos(th) * r, y, z: Math.sin(th) * r };
+    });
+
+    const BASE = 0.0045; // idle spin speed (rad/frame)
+    let vx = reduce ? 0 : BASE, vy = reduce ? 0 : -BASE * 0.35; // spin around Y (from horizontal drag) and X (vertical drag)
+    let hover = false, dragging = false, moved = 0, lastX = 0, lastY = 0;
+
+    function rotate(ax: number, ay: number) {
+      const ca = Math.cos(ax), sa = Math.sin(ax), cb = Math.cos(ay), sb = Math.sin(ay);
+      for (const p of pts) {
+        const x = p.x * ca + p.z * sa, z = -p.x * sa + p.z * ca; // around Y
+        const y = p.y * cb - z * sb, z2 = p.y * sb + z * cb; // around X
+        p.x = x; p.y = y; p.z = z2;
+      }
+    }
+
+    function render() {
+      // shrink tags (and the radius a bit) on narrow screens so they stay on the page
+      const w = root!.clientWidth, gs = Math.min(1, Math.max(0.58, w / 640));
+      root!.style.setProperty("--gs", gs.toFixed(3));
+      const R = w * (gs < 0.8 ? 0.38 : 0.42);
+      tags.forEach((el, i) => {
+        const p = pts[i];
+        const depth = (p.z + 1) / 2; // 0 back … 1 front
+        el.style.transform = `translate(-50%, -50%) translate3d(${(p.x * R).toFixed(1)}px, ${(p.y * R).toFixed(1)}px, 0) scale(${(0.6 + depth * 0.55).toFixed(3)})`;
+        el.style.opacity = (0.18 + depth * 0.82).toFixed(2);
+        el.style.zIndex = String(Math.round(depth * 100));
+        el.style.pointerEvents = depth > 0.45 ? "auto" : "none";
+      });
+    }
+
+    function frame() {
+      if (!root!.isConnected) return;
+      if (!dragging) {
+        // ease the speed back to the idle speed, keeping the current direction
+        const speed = Math.hypot(vx, vy) || 1;
+        const target = reduce ? 0 : hover ? BASE * 0.25 : BASE;
+        const k = speed + (target - speed) * 0.04;
+        vx = (vx / speed) * k;
+        vy = (vy / speed) * k;
+        rotate(vx, vy);
+      }
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    // capture the pointer only once it really drags, so a plain tap keeps the link's native click
+    root.addEventListener("pointerdown", (e) => {
+      dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+    });
+    root.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      moved += Math.abs(dx) + Math.abs(dy);
+      if (moved >= 6 && !root.hasPointerCapture(e.pointerId)) {
+        root.setPointerCapture(e.pointerId);
+        root.classList.add("is-dragging");
+      }
+      const k = 1.6 / root.clientWidth;
+      vx = dx * k; vy = -dy * k;
+      rotate(vx, vy);
+    });
+    const end = (e: PointerEvent) => {
+      dragging = false;
+      root.classList.remove("is-dragging");
+      if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
+    };
+    root.addEventListener("pointerup", end);
+    root.addEventListener("pointercancel", end);
+    // a drag must not open the tag under the finger
+    root.addEventListener("click", (e) => { if (moved >= 6) { e.preventDefault(); e.stopPropagation(); } }, true);
+    root.addEventListener("pointerenter", () => (hover = true));
+    root.addEventListener("pointerleave", () => (hover = false));
+
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  initGlobe();
+  // swup swaps <main> without a full reload, so re-run on every page view
+  document.addEventListener("swup:page:view", initGlobe);
+</script>
+
+<style is:global>
+  .globe-wrap { overflow-x: clip; padding-block: 0.5rem; }
+  .globe {
+    position: relative; margin-inline: auto; width: min(92vw, 42rem); aspect-ratio: 1;
+    touch-action: none; user-select: none; cursor: grab;
+  }
+  .globe.is-dragging { cursor: grabbing; }
+  .globe-grid { position: absolute; inset: 8%; width: 84%; height: 84%; fill: none; stroke: currentColor; stroke-opacity: 0.12; stroke-width: 0.6; }
+  .globe-grid .globe-ball { fill: rgb(253 230 138 / 0.08); stroke-opacity: 0.25; stroke-width: 1; }
+  html.dark .globe-grid .globe-ball { fill: rgb(253 230 138 / 0.05); }
+  .globe-tags { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+  .globe-tag {
+    position: absolute; left: 50%; top: 50%; white-space: nowrap; will-change: transform, opacity;
+    font: 600 calc(var(--fs, 0.9rem) * var(--gs, 1)) / 1 "Kanit", sans-serif;
+    padding: 0.35em 0.75em; border-radius: 999px; border: 1px solid rgb(127 127 127 / 0.35);
+    background: rgb(253 252 251 / 0.85); box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  html.dark .globe-tag { background: rgb(30 30 30 / 0.85); }
+  .globe-tag sup { margin-left: 0.25em; font-size: 0.65em; opacity: 0.6; }
+  .globe-tag.is-warm { border-color: rgb(245 158 11 / 0.6); }
+  .globe-tag.is-hot { border-color: var(--space-red); background: rgb(144 57 58 / 0.12); }
+  html.dark .globe-tag.is-hot { border-color: #fde68a; background: rgb(253 230 138 / 0.12); }
+  .globe-tag:hover { border-color: var(--space-red); }
+  html.dark .globe-tag:hover { border-color: #fde68a; }
+</style>

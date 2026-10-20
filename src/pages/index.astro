@@ -10,7 +10,7 @@ import heroImage from "../assets/images/opik-halopik.png";
 import ArrowRight from "../icons/ArrowRight.astro";
 import StatsStrip from "../components/home/StatsStrip.astro";
 import TechMarquee from "../components/home/TechMarquee.astro";
-import CareerTimeline from "../components/home/CareerTimeline.astro";
+import CareerRoadmap from "../components/home/CareerRoadmap.astro";
 import HalopikSection from "../components/home/HalopikSection.astro";
 import ContactCta from "../components/home/ContactCta.astro";
 
@@ -79,6 +79,14 @@ const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
   </div>
 
   <section class="page-content text-center!">
+    <h2 class="sigmar-ff text-balance pt-0!">Perjalanan</h2>
+    <p class="kanit-light text-balance mb-10!">
+      Dari kampus, studio game, sampai Erajaya Group.
+    </p>
+    <CareerRoadmap />
+  </section>
+
+  <section class="page-content text-center!">
     <h2 class="sigmar-ff text-balance pt-0!">Recent Projects</h2>
     <p class="kanit-light text-balance">Yang terbaru dari meja kerja.</p>
     <div
@@ -93,14 +101,6 @@ const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
     <Button href={"/project"} class="space-btn-filled mt-8">
       View All Projects <ArrowRight class="w-5 h-5 fill-current ml-4" />
     </Button>
-  </section>
-
-  <section class="page-content text-center!">
-    <h2 class="sigmar-ff text-balance pt-0!">Perjalanan</h2>
-    <p class="kanit-light text-balance mb-10!">
-      Dari kampus, studio game, sampai Erajaya Group.
-    </p>
-    <CareerTimeline />
   </section>
 
   <div class="my-12 w-full">

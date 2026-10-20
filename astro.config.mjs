@@ -9,6 +9,10 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   site: "https://taufiqtab.github.io",
   base: "/",
+  // About and Contact were merged into one page
+  redirects: {
+    "/contact": "/about#contact",
+  },
   integrations: [
     swup({
       theme: ["overlay", { direction: "to-top" }],

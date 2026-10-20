@@ -1,5 +1,4 @@
 ---
-import { Image } from "astro:assets";
 import siteConfig from "../site.config";
 
 type SiteIdentityProps = {
@@ -20,12 +19,14 @@ const {
 ---
 
 <div class:list={["flex items-center gap-2", customClass]}>
-  <Image
-    src="/space-ahead-logo.png"
-    alt="Logo"
+  <img
+    src="/favicon.svg"
+    alt="Logo Opik"
     width={logoWidth}
     height={logoHeight}
     loading={loading}
+    class="rounded-md!"
+    style="image-rendering: pixelated"
   />
   <span class:list={["sigmar-ff", textSize]}>{siteConfig.title}</span>
 </div>

@@ -90,10 +90,6 @@ const siteConfig: SiteConfig = {
         {
             text: 'About',
             href: '/about'
-        },
-        {
-            text: 'Contact',
-            href: '/contact'
         }
     ],
     footerNavLinks: [
@@ -103,7 +99,7 @@ const siteConfig: SiteConfig = {
         },
         {
             text: 'Contact',
-            href: '/contact'
+            href: '/about#contact'
         }
         // {
         //     text: 'RSS Feed',
@@ -139,7 +135,7 @@ const siteConfig: SiteConfig = {
         actions: [
             {
                 text: 'Contact',
-                href: '/contact'
+                href: '/about#contact'
             }
         ]
     },
