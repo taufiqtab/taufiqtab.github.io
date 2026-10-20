@@ -37,7 +37,7 @@ const { title, description, pubDate, author, tags = [], image, period, company, 
   post.data;
 const facts = [
   { label: "Tahun", value: period },
-  { label: "Perusahaan", value: company },
+  { label: "Organisasi", value: company },
   { label: "Platform", value: platform },
 ].filter((fact) => fact.value);
 const { Content } = await render(post);
