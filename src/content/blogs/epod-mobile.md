@@ -5,8 +5,8 @@ author: "Taufiq Abdullah"
 image:
   url: "../../assets/images/projects/epod-mobile/cover.jpg"
   alt: "ePOD Mobile"
-pubDate: 2025-06-01
-period: "2025"
+pubDate: 2026-06-01
+period: "2026"
 company: "EraExpress & Internal SCM"
 platform: "Android Native"
 tags: ["kotlin", "android"]

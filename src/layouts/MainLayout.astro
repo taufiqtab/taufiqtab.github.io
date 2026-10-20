@@ -11,11 +11,14 @@ type LayoutProps = {
   pageTitle: string;
   activePage: string;
   showSubscribeForm?: boolean;
+  // wider container for grid pages (nav and footer stay narrow)
+  wide?: boolean;
 };
 const {
   pageTitle,
   activePage,
   showSubscribeForm = true,
+  wide = false,
 } = Astro.props as LayoutProps;
 ---
 
@@ -43,7 +46,7 @@ const {
     <title>{pageTitle}</title>
   </head>
   <body>
-    <main class="max-w-3xl mx-auto min-h-screen">
+    <main class:list={["mx-auto min-h-screen", wide ? "max-w-7xl" : "max-w-3xl"]}>
       <Nav activePage={activePage} />
       <slot />
       {showSubscribeForm && <Subscribe class="my-12 w-full" />}

@@ -5,7 +5,7 @@ author: "Taufiq Abdullah"
 image:
   url: "../../assets/images/projects/workflow-management-services/cover.jpg"
   alt: "Workflow Management Services"
-pubDate: 2026-02-01
+pubDate: 2026-10-10
 period: "2026"
 company: "Erajaya Group"
 platform: "Backend Service"

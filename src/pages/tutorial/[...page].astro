@@ -1,0 +1,43 @@
+---
+import type { GetStaticPathsOptions, Page } from "astro";
+import MainLayout from "../../layouts/MainLayout.astro";
+import siteConfig from "../../site.config";
+import GridCard from "../../components/GridCard.astro";
+import InfiniteGrid from "../../components/InfiniteGrid.astro";
+import { tutorials, type Tutorial } from "../../data/tutorials";
+
+export async function getStaticPaths({ paginate }: GetStaticPathsOptions) {
+  return paginate(tutorials, { pageSize: siteConfig.postsPerPage || 2 });
+}
+
+type Props = { page: Page<Tutorial> };
+
+const { page } = Astro.props;
+---
+
+<MainLayout
+  activePage="tutorial"
+  pageTitle={siteConfig.title + " | Tutorial"}
+  wide
+>
+  <div class="page-content">
+    <h1 class="sigmar-ff text-balance">Tutorial</h1>
+    <p class="kanit-light text-balance">
+      Versi lengkap dari reel Halopik: step by step, bergambar, dan perintahnya
+      tinggal copy.
+    </p>
+    <InfiniteGrid page={page}>
+      {
+        page.data.map((t) => (
+          <GridCard
+            href={t.href}
+            title={t.title}
+            description={t.description}
+            image={t.cover}
+            meta={t.tag}
+          />
+        ))
+      }
+    </InfiniteGrid>
+  </div>
+</MainLayout>

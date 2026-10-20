@@ -6,7 +6,7 @@ import { sortItemsByDateDesc, withBase } from "../utils/helpers";
 import PostCardPreview from "../components/PostCardPreview.astro";
 import Button from "../components/Button.astro";
 import { Image } from "astro:assets";
-import heroImage from "../assets/images/opik-fly-illustration.png";
+import heroImage from "../assets/images/opik-halopik.png";
 import ArrowRight from "../icons/ArrowRight.astro";
 
 const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
@@ -48,14 +48,20 @@ const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
         }
       </div>
     </div>
-    <div class="w-full sm:w-fit sm:max-w-1/2">
+    <div class="relative flex w-full justify-center sm:w-fit sm:max-w-1/2">
       <!-- {siteConfig.hero?.image && <Image src={siteConfig.hero?.image?.src} alt={siteConfig.hero?.image?.alt || ""} inferSize={true} />} -->
+      <div
+        class="absolute inset-x-6 top-8 bottom-0 rounded-full bg-gradient-to-b from-amber-300/45 to-space-red/25 blur-2xl dark:from-amber-300/25 dark:to-space-red/30"
+        aria-hidden="true"
+      >
+      </div>
       <Image
-        class="cover-img"
+        class="cover-img relative w-64 rounded-none! sm:w-80"
         src={heroImage}
-        alt={"Astronaut in space"}
-        width={400}
-        height={300}
+        alt={"Opik, karakter Halopik"}
+        width={377}
+        height={473}
+        loading="eager"
       />
     </div>
   </div>

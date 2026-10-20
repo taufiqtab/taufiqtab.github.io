@@ -1,0 +1,22 @@
+---
+import type { CollectionEntry } from "astro:content";
+import GridCard from "./GridCard.astro";
+
+type Props = { post: CollectionEntry<"blogs"> };
+const { post } = Astro.props;
+const { title, pubDate, description, image, period, company, award, tags = [] } =
+  post.data;
+
+const year = period ?? String(new Date(pubDate).getFullYear());
+---
+
+<GridCard
+  href={"/project/" + post.id}
+  title={title}
+  description={description}
+  image={image?.url}
+  imageAlt={image?.alt}
+  meta={company ? `${year} · ${company}` : year}
+  badge={award && "🏆 Award"}
+  chips={tags.slice(0, 3)}
+/>

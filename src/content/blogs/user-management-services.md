@@ -5,7 +5,7 @@ author: "Taufiq Abdullah"
 image:
   url: "../../assets/images/projects/user-management-services/cover.jpg"
   alt: "UMS (User Management Service)"
-pubDate: 2026-03-01
+pubDate: 2026-07-07
 period: "2026"
 company: "Erajaya Group"
 platform: "Backend Service"
