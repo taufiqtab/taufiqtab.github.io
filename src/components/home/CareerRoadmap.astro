@@ -221,14 +221,21 @@ function sprite(kind: string, [x, y]: Pt, s: number) {
         `<line x1="${f(iso(46, -26)[0])}" y1="${f(iso(46, -26)[1])}" x2="${f(iso(46, -26, 82)[0])}" y2="${f(iso(46, -26, 82)[1])}" stroke="#475569" stroke-width="2"/>` +
         polyFill([iso(46, -26, 82), iso(46, -26, 70), [iso(46, -26, 76)[0] + 18, iso(46, -26, 76)[1]]], "#ef4444") +
         signBoard(48, ["STT TERPADU", "NURUL FIKRI"], 92));
-    case "studio": // sound stage with a big clapperboard on the roof
+    case "studio": // game studio with a big game controller on the roof
       return g(plaza(96, 80) +
-        isoBox(64, 50, 32, ["#475569", "#334155", "#1e293b"], 0, -32, -25) +
-        polyFill([iso(-32, 25, 6), iso(-6, 25, 6), iso(-6, 25, 24), iso(-32, 25, 24)], "#fbbf24") +
-        isoBox(30, 6, 18, ["#f8fafc", "#e2e8f0", "#cbd5e1"], 32, -15, -3) +
-        `<g transform="translate(${f(iso(0, 0, 50)[0])} ${f(iso(0, 0, 50)[1])}) rotate(-12)"><rect x="-17" y="-12" width="34" height="9" fill="#111"/>${[0, 1, 2, 3].map((i) => `<rect x="${-15 + i * 9}" y="-12" width="4" height="9" fill="#fff" transform="skewX(-25)"/>`).join("")}</g>` +
-        `<text x="${f(iso(0, 0, 41)[0])}" y="${f(iso(0, 0, 41)[1])}" text-anchor="middle" font-family="Kanit, sans-serif" font-weight="800" font-size="9" fill="#111">ACTION!</text>` +
-        signBoard(44, ["STUDIO"], 54));
+        isoBox(64, 50, 32, ["#4c1d95", "#3b0764", "#2e1065"], 0, -32, -25) +
+        // glowing monitor on the facade, with a tiny "play" triangle
+        polyFill([iso(-30, 25, 8), iso(-8, 25, 8), iso(-8, 25, 24), iso(-30, 25, 24)], "#22d3ee") +
+        polyFill([iso(-22, 25, 12), iso(-22, 25, 20), iso(-15, 25, 16)], "#ecfeff") +
+        // the controller on a short stand
+        isoBox(6, 6, 10, ["#cbd5e1", "#94a3b8", "#64748b"], 32, -3, -3) +
+        `<g transform="translate(${f(iso(0, 0, 50)[0])} ${f(iso(0, 0, 50)[1])}) rotate(-8)">
+          <path d="M-20 -8 H20 C28 -8 32 -2 33 6 L35 16 C36 24 27 27 22 21 L16 14 H-16 L-22 21 C-27 27 -36 24 -35 16 L-33 6 C-32 -2 -28 -8 -20 -8 Z" fill="#7c3aed" stroke="#1e1b4b" stroke-width="2"/>
+          <rect x="-24" y="-1" width="4" height="12" rx="1" fill="#f5f3ff"/><rect x="-28" y="3" width="12" height="4" rx="1" fill="#f5f3ff"/>
+          <circle cx="20" cy="0" r="2.6" fill="#facc15"/><circle cx="26" cy="5" r="2.6" fill="#22c55e"/><circle cx="14" cy="5" r="2.6" fill="#3b82f6"/><circle cx="20" cy="10" r="2.6" fill="#ef4444"/>
+          <circle cx="-7" cy="8" r="3.4" fill="#1e1b4b"/><circle cx="7" cy="8" r="3.4" fill="#1e1b4b"/>
+        </g>` +
+        signBoard(44, ["GAME STUDIO"], 82));
     case "office": // three towers of different heights
       return g(plaza(110, 96) +
         isoBox(30, 30, 56, ["#cbd5e1", "#94a3b8", "#64748b"], 0, -46, -10) + isoWindows(30, 30, 56, 5, 0, -46, -10) +
