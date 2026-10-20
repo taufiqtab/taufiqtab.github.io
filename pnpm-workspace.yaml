@@ -1,0 +1,5 @@
+# pnpm 11 fails the install (ERR_PNPM_IGNORED_BUILDS) when a dependency's build
+# script is not reviewed. These two are needed by Astro (esbuild) and astro:assets (sharp).
+allowBuilds:
+  esbuild: true
+  sharp: true
