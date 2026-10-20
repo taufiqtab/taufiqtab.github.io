@@ -9,9 +9,41 @@ export type Milestone = {
 // oldest first
 export const timeline: Milestone[] = [
     {
+        year: "2014",
+        title: "Game jam pertama & asisten dosen",
+        text: "Trash Rush lahir di Global Game Jam 2014, e-Voting Pemira dipakai untuk pemilihan ketua BEM. Mulai jadi asisten dosen Pemrograman Berorientasi Objek untuk semester 3.",
+        href: "/project/trash-rush",
+    },
+    {
+        year: "2015",
+        title: "🏆 Finalis Gemastik 8, Yogyakarta",
+        text: "Lewat Trashformers 3R, game Android bertema reduce, reuse, recycle.",
+        href: "/project/trashformers-3r",
+        highlight: true,
+    },
+    {
+        year: "2016",
+        title: "Asdos Game Development & eksplorasi AR",
+        text: "Mengajar Game Development untuk semester 7, kelas pagi dan kelas karyawan. Di sela-selanya, membuat aplikasi AR edukasi dan wisata.",
+        href: "/project/bangun-ruang-augmented-reality",
+    },
+    {
+        year: "2016",
+        title: "Magang di Falcon Pictures",
+        text: "Masuk divisi Game Development dan membuat game dari film Warkop DKI Reborn.",
+        href: "/project/warkop-dki-reborn",
+    },
+    {
+        year: "2017",
+        title: "Lulus cumlaude, langsung ke studio game",
+        text: "Sambil menunggu wisuda 2018, bekerja di Binary Works Indonesia hingga Maret 2018: seri Juragan, Legend War, Bido, SecondWorld, dan Gunners.IO.",
+        href: "/project/gunners-io",
+        highlight: true,
+    },
+    {
         year: "2018",
-        title: "Project pertama di Erajaya Group",
-        text: "Vendor Portal dengan booking gudang, eReporting dan Report Generator, enhancement OS Ticket, sampai CSO untuk iBox.",
+        title: "Freelance, startup, lalu Erajaya Group",
+        text: "Setelah beberapa project freelance dan bergabung dengan startup, berlabuh di Erajaya Group: Vendor Portal, eReporting, OS Ticket, dan CSO untuk iBox.",
         href: "/project/vendor-portal",
     },
     {
@@ -23,7 +55,7 @@ export const timeline: Milestone[] = [
     {
         year: "2021",
         title: "Masuk ke dunia audit",
-        text: "Maintain dan kembangkan AMS milik tim Internal Audit, serta user management untuk DEP bersama Apple.",
+        text: "Mengembangkan AMS untuk tim Internal Audit dan user management untuk DEP bersama Apple.",
         href: "/project/audit-management-system",
     },
     {
