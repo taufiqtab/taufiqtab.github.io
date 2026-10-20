@@ -1,51 +1,217 @@
 ---
-import { getCollection } from "astro:content";
-import {
-  getAllTags,
-  getPostsByTag,
-  sortItemsByDateDesc,
-} from "../../../utils/helpers";
+// Skill profile: an RPG-style status card, skills used alongside it, and a project grid
+// that the co-skill chips filter in place.
+import { getCollection, type CollectionEntry } from "astro:content";
 import type { GetStaticPathsOptions, Page } from "astro";
+import { createSlugFromTitle, getAllTags, getPostsByTag, sortItemsByDateDesc } from "../../../utils/helpers";
 import siteConfig from "../../../site.config";
-import type { CollectionEntry } from "astro:content";
 import MainLayout from "../../../layouts/MainLayout.astro";
-import Pagination from "../../../components/Pagination.astro";
-import Subscribe from "../../../components/Subscribe.astro";
-import PostListPreview from "../../../components/PostListPreview.astro";
+import ProjectCard from "../../../components/ProjectCard.astro";
 
 export async function getStaticPaths({ paginate }: GetStaticPathsOptions) {
   const posts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
-  const tags = getAllTags(posts);
-
-  return tags.flatMap((tag) => {
-    const filteredPosts = getPostsByTag(posts, tag.id);
-    return paginate(filteredPosts, {
-      params: { id: tag.id },
-      pageSize: siteConfig.postsPerPage || 2,
-    });
+  // one page per skill: the grid is filtered client-side, so it needs every project
+  return getAllTags(posts).flatMap((tag) => {
+    const filtered = getPostsByTag(posts, tag.id);
+    return paginate(filtered, { params: { id: tag.id }, pageSize: Math.max(1, filtered.length) });
   });
 }
 
 type Props = { page: Page<CollectionEntry<"blogs">> };
-
 const { page } = Astro.props;
-const blog = page.data;
-const params = Astro.params;
-const allPosts = await getCollection("blogs", (post) =>
-  post.data.tags?.includes(params.id)
-);
-const allTags = getAllTags(allPosts);
-const currentTag = allTags.find((tag) => {
-  return tag.id === params.id;
-});
+const { id } = Astro.params;
+const projects = page.data;
+
+const tagName = getAllTags(projects).find((t) => t.id === id)?.name ?? id;
+
+// year of a project: the first year in its period, else its date (undated ones are left out)
+const yearOf = (p: CollectionEntry<"blogs">) => {
+  if (p.data.period) return p.data.period.match(/\d{4}/)?.[0] ?? "";
+  return String(new Date(p.data.pubDate).getFullYear());
+};
+const years = projects.map(yearOf).filter(Boolean).map(Number);
+const minYear = Math.min(...years), maxYear = Math.max(...years);
+
+// RPG-style rank: level = number of projects, XP bar fills toward the next rank
+const RANKS = [
+  { name: "Novice", from: 1 },
+  { name: "Apprentice", from: 2 },
+  { name: "Adept", from: 4 },
+  { name: "Expert", from: 8 },
+  { name: "Master", from: 16 },
+];
+const level = projects.length;
+const rankIdx = RANKS.findLastIndex((r) => level >= r.from);
+const rank = RANKS[rankIdx], next = RANKS[rankIdx + 1];
+const xp = next ? (level - rank.from) / (next.from - rank.from) : 1;
+
+// skills that appear together with this one
+const co = new Map<string, { id: string; name: string; count: number }>();
+for (const p of projects)
+  for (const t of p.data.tags ?? []) {
+    const tid = createSlugFromTitle(t);
+    if (tid === id) continue;
+    const e = co.get(tid) ?? { id: tid, name: t, count: 0 };
+    e.count++;
+    co.set(tid, e);
+  }
+const together = [...co.values()].sort((a, b) => b.count - a.count).slice(0, 12);
 ---
 
-<MainLayout pageTitle={siteConfig.title + "| " + currentTag?.name + " posts"}>
-  <div class="page-content">
-    <h2>Posts tagged with <span class="sigmar-ff">{currentTag?.name}</span></h2>
-    <div class="flex flex-col gap-8 max-w-full text-left mt-3">
-      {blog.map((post) => <PostListPreview post={post} />)}
+<MainLayout activePage="skills" pageTitle={`${siteConfig.title} | ${tagName}`} wide>
+  <div class="page-content text-left!" data-skill>
+    <a href="/skill" class="kanit-light text-sm opacity-70 hover:opacity-100">← Semua skill</a>
+
+    <section class="mt-4 mb-8 grid gap-6 rounded-3xl border border-gray-500/25 bg-gray-500/5 p-6 sm:p-8 lg:grid-cols-[1fr_1.2fr]">
+      <div>
+        <span class="rounded-full border border-gray-500 px-2 py-0 text-xs kanit-light">Skill</span>
+        <h1 class="sigmar-ff text-balance pt-2! pb-2!">{tagName}</h1>
+        <p class="kanit-light mb-4!">
+          <b class="kanit-bold">{projects.length}</b> project
+          {years.length > 0 && <> · dipakai <b class="kanit-bold">{minYear === maxYear ? minYear : `${minYear}–${maxYear}`}</b></>}
+        </p>
+        {
+          together.length > 0 && (
+            <>
+              <p class="mb-2! text-xs tracking-widest uppercase opacity-60">Sering dipakai bareng · klik untuk filter, ↗ untuk buka</p>
+              <div class="flex flex-wrap gap-2">
+                {together.map((t) => (
+                  <span class="skill-chip-wrap">
+                    <button type="button" class="skill-chip" data-cotag={t.id} aria-pressed="false" title={`Filter: ${t.name}`}>
+                      {t.name} <span class="opacity-60">{t.count}</span>
+                    </button>
+                    <a href={"/skill/" + t.id} class="skill-chip-go" title={`Buka skill ${t.name}`} aria-label={`Buka halaman skill ${t.name}`}>↗</a>
+                  </span>
+                ))}
+              </div>
+            </>
+          )
+        }
+      </div>
+
+      <div class="skill-card" aria-label={`Rank ${rank.name}, level ${level}`}>
+        <div class="flex items-center gap-4">
+          <img src="/favicon.svg" alt="" width="56" height="56" class="skill-card-avatar" />
+          <div class="min-w-0">
+            <p class="skill-card-label">RANK</p>
+            <p class="skill-card-rank">{rank.name}</p>
+          </div>
+          <div class="ml-auto text-right">
+            <p class="skill-card-label">LV</p>
+            <p class="skill-card-level">{level}</p>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div class="flex justify-between">
+            <span class="skill-card-label">XP</span>
+            <span class="skill-card-label">{next ? `${next.from - level} project lagi → ${next.name}` : "MAX"}</span>
+          </div>
+          <div class="skill-card-xp"><span style={`width:${Math.round(xp * 100)}%`} /></div>
+        </div>
+        <dl class="skill-card-stats">
+          <div><dt>Pertama</dt><dd>{years.length ? minYear : "–"}</dd></div>
+          <div><dt>Terakhir</dt><dd>{years.length ? maxYear : "–"}</dd></div>
+          <div><dt>Partner</dt><dd class="truncate">{together[0]?.name ?? "–"}</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <p class="kanit-light mb-0! text-sm" aria-live="polite" data-skill-count>
+        Menampilkan {projects.length} dari {projects.length} project
+      </p>
+      <button type="button" class="skill-reset text-sm underline underline-offset-4" data-skill-reset hidden>Reset filter</button>
     </div>
-    <Pagination page={page} class="mb-16 sm:mb-24" />
+
+    <ul class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {
+        projects.map((p) => (
+          <li class="skill-item" data-tags={(p.data.tags ?? []).map(createSlugFromTitle).join(" ")}>
+            <ProjectCard post={p} />
+          </li>
+        ))
+      }
+    </ul>
+    <p class="kanit-light mt-8 text-center opacity-70" data-skill-empty hidden>Tidak ada project yang cocok dengan filter ini.</p>
   </div>
+<script>
+  function initSkillPage() {
+    const root = document.querySelector<HTMLElement>("[data-skill]");
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = "1";
+
+    const items = Array.from(root.querySelectorAll<HTMLElement>(".skill-item"));
+    const chips = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-cotag]"));
+    const count = root.querySelector<HTMLElement>("[data-skill-count]")!;
+    const reset = root.querySelector<HTMLButtonElement>("[data-skill-reset]")!;
+    const empty = root.querySelector<HTMLElement>("[data-skill-empty]")!;
+
+    const tags = new Set<string>();
+
+    function apply() {
+      let shown = 0;
+      for (const it of items) {
+        const itTags = it.dataset.tags!.split(" ");
+        const ok = [...tags].every((t) => itTags.includes(t));
+        it.classList.toggle("is-out", !ok);
+        if (ok) shown++;
+      }
+      chips.forEach((c) => c.setAttribute("aria-pressed", String(tags.has(c.dataset.cotag!))));
+      count.textContent = `Menampilkan ${shown} dari ${items.length} project`;
+      reset.hidden = tags.size === 0;
+      empty.hidden = shown > 0;
+    }
+
+    chips.forEach((c) => c.addEventListener("click", () => {
+      const t = c.dataset.cotag!;
+      tags.has(t) ? tags.delete(t) : tags.add(t);
+      apply();
+    }));
+    reset.addEventListener("click", () => { tags.clear(); apply(); });
+  }
+
+  initSkillPage();
+  // swup swaps <main> without a full reload, so re-run on every page view
+  document.addEventListener("swup:page:view", initSkillPage);
+</script>
+
+<style is:global>
+  .skill-chip {
+    cursor: pointer; border-radius: 999px; border: 1px solid rgb(127 127 127 / 0.35);
+    padding: 0.3rem 0.75rem; font-size: 0.85rem; transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .skill-chip:hover { border-color: var(--space-red); }
+  .skill-chip[aria-pressed="true"] { background: var(--space-red); border-color: var(--space-red); color: #fff; }
+  html.dark .skill-chip:hover { border-color: #fde68a; }
+  html.dark .skill-chip[aria-pressed="true"] { background: #fde68a; border-color: #fde68a; color: #111; }
+
+  .skill-chip-wrap { display: inline-flex; align-items: stretch; }
+  .skill-chip-wrap .skill-chip { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .skill-chip-go {
+    display: grid; place-items: center; padding: 0 0.55rem; font-size: 0.8rem;
+    border: 1px solid rgb(127 127 127 / 0.35); border-left: 0; border-radius: 0 999px 999px 0;
+    transition: background 0.15s;
+  }
+  .skill-chip-go:hover { background: rgb(127 127 127 / 0.15); }
+  .skill-card {
+    align-self: center; padding: 1.25rem 1.4rem; border-radius: 1.25rem; text-align: left;
+    background: #1b1530; color: #f5f3ff; border: 3px solid #fde68a;
+    box-shadow: 0 0 0 3px #1b1530, 0 14px 30px rgb(0 0 0 / 0.25);
+  }
+  .skill-card p { margin: 0 !important; }
+  .skill-card-avatar { border-radius: 0.75rem !important; image-rendering: pixelated; border: 2px solid #fde68a; }
+  .skill-card-label { font: 700 0.65rem Menlo, Consolas, monospace; letter-spacing: 0.12em; color: #c4b5fd; }
+  .skill-card-rank { font: 400 1.6rem/1.1 "Sigmar", sans-serif; color: #fde68a; }
+  .skill-card-level { font: 700 2rem/1 Menlo, Consolas, monospace; color: #fff; }
+  .skill-card-xp { margin-top: 0.35rem; height: 0.8rem; border-radius: 999px; background: rgb(255 255 255 / 0.12); overflow: hidden; border: 2px solid rgb(255 255 255 / 0.2); }
+  .skill-card-xp span { display: block; height: 100%; border-radius: 999px; background: repeating-linear-gradient(45deg, #fde68a 0 8px, #fbbf24 8px 16px); }
+  .skill-card-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 1rem 0 0; }
+  .skill-card-stats div { min-width: 0; padding: 0.5rem 0.6rem; border-radius: 0.6rem; background: rgb(255 255 255 / 0.06); }
+  .skill-card-stats dt { font: 700 0.6rem Menlo, Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: #c4b5fd; }
+  .skill-card-stats dd { margin: 0; font: 700 0.95rem "Kanit", sans-serif; }
+
+  .skill-item { transition: opacity 0.25s, transform 0.25s; }
+  .skill-item.is-out { display: none; }
+  @starting-style { .skill-item { opacity: 0; transform: translateY(8px); } }
+</style>
 </MainLayout>

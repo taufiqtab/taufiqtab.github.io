@@ -8,7 +8,7 @@ image:
 pubDate: 2014-06-01
 period: "2014"
 platform: "Aplikasi Voting"
-tags: ["e-voting", "tools"]
+tags: ["e-voting", "tools", "php"]
 ---
 ## 🗳️ Tentang Aplikasi
 **e-Voting Pemira** adalah aplikasi voting untuk **Pemira** (Pemilihan Raya), yaitu pemilihan **ketua BEM**. Pemungutan suara yang biasanya memakai kertas suara dan dihitung manual diganti dengan pemilihan secara elektronik.

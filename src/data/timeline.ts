@@ -70,6 +70,15 @@ export const timeline: Milestone[] = [
         href: "/project/erajaya-modular-application",
     },
     {
+        year: "2020",
+        title: "Simpelin resmi meluncur",
+        label: "Simpelin",
+        icon: "🧺",
+        text: "Aplikasi POS laundry: merancang arsitektur, merawat server dan database, membangun aplikasi Flutter, backend Laravel, microservices Golang, dan auto backup database.",
+        href: "/project/simpelin",
+        highlight: true,
+    },
+    {
         year: "2021",
         title: "Masuk ke dunia audit",
         label: "Dunia Audit",

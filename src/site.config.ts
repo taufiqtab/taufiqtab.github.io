@@ -120,8 +120,16 @@ const siteConfig: SiteConfig = {
             href: 'https://instagram.com/taufiqtab'
         },
         {
-            text: 'X/Twitter',
-            href: 'https://twitter.com/'
+            text: 'YouTube',
+            href: 'https://www.youtube.com/@taufiq_tab'
+        },
+        {
+            text: 'TikTok',
+            href: 'https://www.tiktok.com/@taufiqtab'
+        },
+        {
+            text: 'Threads',
+            href: 'https://www.threads.net/@taufiqtab'
         }
     ],
     hero: {

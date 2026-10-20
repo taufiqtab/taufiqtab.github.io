@@ -40,9 +40,7 @@ const { title, eyebrow, description, cover, coverAlt, meta, toc } = Astro.props;
       <slot />
     </div>
   </article>
-</MainLayout>
-
-<script>
+  <script>
   // One delegated handler for every Cmd copy button on any tutorial page.
   document.addEventListener("click", async (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".tut-copy");
@@ -120,3 +118,4 @@ const { title, eyebrow, description, cover, coverAlt, meta, toc } = Astro.props;
     border-radius: 0;
   }
 </style>
+</MainLayout>

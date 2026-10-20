@@ -7,6 +7,7 @@ import StatsStrip from "../components/home/StatsStrip.astro";
 import siteConfig from "../site.config";
 import opik from "../assets/images/opik-halopik.png";
 import photo from "../assets/images/taufiq-abdullah.jpg";
+import { brandIcons } from "../data/brandIcons";
 
 const posts = await getCollection("blogs");
 const { about, contactInfo } = siteConfig;
@@ -40,18 +41,12 @@ const focus = [
   },
 ];
 
+// contact grid: email + profiles + social links, each with its brand logo
 const channels = [
-  ...(contactInfo?.email?.href
-    ? [{ icon: "✉️", label: "Email", value: contactInfo.email.email, href: contactInfo.email.href }]
-    : []),
-  ...(contactInfo?.socialProfiles ?? []).map((p) => ({
-    icon: p.text === "LinkedIn" ? "💼" : p.text === "GitHub" ? "🐙" : "🔗",
-    label: p.text,
-    value: p.href.replace(/^https?:\/\/(www\.)?/, ""),
-    href: p.href,
-  })),
-  { icon: "📸", label: "Instagram", value: "@taufiqtab", href: "https://instagram.com/taufiqtab" },
-];
+  ...(contactInfo?.email?.href ? [{ label: "Email", href: contactInfo.email.href }] : []),
+  ...(contactInfo?.socialProfiles ?? []).map((p) => ({ label: p.text, href: p.href })),
+  ...(siteConfig.socialLinks ?? []).map((l) => ({ label: l.text, href: l.href })),
+].map((c) => ({ ...c, icon: brandIcons[c.label.toLowerCase()] }));
 ---
 
 <MainLayout activePage="about" pageTitle={siteConfig.title + " | About"} wide>
@@ -119,39 +114,53 @@ const channels = [
     <div
       class="grid gap-8 rounded-3xl border border-gray-500/25 bg-gradient-to-br from-amber-300/25 via-transparent to-space-red/20 p-6 text-left sm:p-10 md:grid-cols-2 dark:from-amber-300/10 dark:to-space-red/25"
     >
-      <div>
+      <div class="min-w-0">
         <h2 class="sigmar-ff text-balance pt-0!">{contactInfo?.title}</h2>
         {contactInfo?.text?.split("\n").map((line) => <p class="kanit-light text-balance">{line}</p>)}
         <p class="kanit-light mb-0! opacity-80">{contactInfo?.email?.text}</p>
       </div>
-      <ul class="flex flex-col gap-3 self-center">
-        {
-          channels.map((c) => (
-            <li>
-              <a
-                href={c.href}
-                target={c.href.startsWith("http") ? "_blank" : undefined}
-                rel={c.href.startsWith("http") ? "noopener" : undefined}
-                class="contact-row group flex items-center gap-4 rounded-2xl border border-gray-500/25 bg-space-sand/70 px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-black/40"
-              >
-                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gray-500/10 text-xl">{c.icon}</span>
-                <span class="min-w-0">
-                  <span class="block text-xs tracking-widest uppercase opacity-60">{c.label}</span>
-                  <span class="kanit-bold block truncate">{c.value}</span>
-                </span>
-                <span class="ml-auto opacity-50 transition group-hover:translate-x-1" aria-hidden="true">→</span>
-              </a>
-            </li>
-          ))
-        }
-      </ul>
+      <div class="min-w-0 self-center">
+        <ul class="grid grid-cols-4 gap-3">
+          {
+            channels.map((c) => (
+              <li>
+                <a
+                  href={c.href}
+                  target={c.href.startsWith("http") ? "_blank" : undefined}
+                  rel={c.href.startsWith("http") ? "noopener" : undefined}
+                  title={c.label === "Email" ? contactInfo?.email?.email : c.label}
+                  class="contact-tile flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-gray-500/25 bg-space-sand/80 transition hover:-translate-y-1 hover:shadow-lg dark:bg-black/40"
+                  style={c.icon ? `--c:${c.icon.color};--cd:${c.icon.darkColor}` : undefined}
+                >
+                  {c.icon && (
+                    <svg viewBox="0 0 24 24" class="brand-ico h-7 w-7 sm:h-8 sm:w-8" aria-hidden="true">
+                      <path d={c.icon.path} />
+                    </svg>
+                  )}
+                  <span class="text-[11px] leading-none opacity-75 sm:text-xs">{c.label}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
     </div>
   </section>
 </MainLayout>
 
 <style>
-  /* keep the global link hover color from tinting the whole row */
-  html .contact-row:hover {
+  /* keep the global link hover color from tinting the whole tile */
+  html .contact-tile:hover {
     color: inherit !important;
+    border-color: var(--c);
+  }
+  .brand-ico {
+    fill: var(--c);
+  }
+  :global(html.dark) .brand-ico {
+    fill: var(--cd);
+  }
+  :global(html.dark) .contact-tile:hover {
+    border-color: var(--cd);
   }
 </style>
