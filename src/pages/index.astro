@@ -2,12 +2,17 @@
 import { getCollection } from "astro:content";
 import MainLayout from "../layouts/MainLayout.astro";
 import siteConfig from "../site.config";
-import { sortItemsByDateDesc, withBase } from "../utils/helpers";
-import PostCardPreview from "../components/PostCardPreview.astro";
+import { sortItemsByDateDesc } from "../utils/helpers";
+import ProjectCard from "../components/ProjectCard.astro";
 import Button from "../components/Button.astro";
 import { Image } from "astro:assets";
 import heroImage from "../assets/images/opik-halopik.png";
 import ArrowRight from "../icons/ArrowRight.astro";
+import StatsStrip from "../components/home/StatsStrip.astro";
+import TechMarquee from "../components/home/TechMarquee.astro";
+import CareerTimeline from "../components/home/CareerTimeline.astro";
+import HalopikSection from "../components/home/HalopikSection.astro";
+import ContactCta from "../components/home/ContactCta.astro";
 
 const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
 ---
@@ -15,9 +20,10 @@ const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
 <MainLayout
   activePage="home"
   pageTitle={siteConfig.title + " | Personal Portofolio"}
+  wide
 >
   <div
-    class="jumbo-banner flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 my-12 gap-6"
+    class="jumbo-banner mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 my-12 sm:flex-row sm:items-center sm:justify-between"
   >
     <div class="w-full sm:w-fit sm:max-w-1/2">
       {
@@ -46,10 +52,10 @@ const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
             </Button>
           ))
         }
+        <Button href="/project" class="space-btn-outlined">Lihat Project</Button>
       </div>
     </div>
     <div class="relative flex w-full justify-center sm:w-fit sm:max-w-1/2">
-      <!-- {siteConfig.hero?.image && <Image src={siteConfig.hero?.image?.src} alt={siteConfig.hero?.image?.alt || ""} inferSize={true} />} -->
       <div
         class="absolute inset-x-6 top-8 bottom-0 rounded-full bg-gradient-to-b from-amber-300/45 to-space-red/25 blur-2xl dark:from-amber-300/25 dark:to-space-red/30"
         aria-hidden="true"
@@ -58,26 +64,50 @@ const allPosts = (await getCollection("blogs")).sort(sortItemsByDateDesc);
       <Image
         class="cover-img relative w-64 rounded-none! sm:w-80"
         src={heroImage}
-        alt={"Opik, karakter Halopik"}
-        width={377}
-        height={473}
+        alt={"Opik tertawa, karakter Halopik"}
+        width={374}
+        height={442}
         loading="eager"
       />
     </div>
   </div>
-  <div class="page-content">
-    <div id="posts" class="flex flex-col items-center justify-center w-full">
-      <h2 class="sigmar-ff text-balance pt-0! pb-8!">Recent Projects</h2>
-      <div class="flex flex-col gap-8 max-w-full text-left">
-        {
-          allPosts
-            .slice(0, siteConfig.recentPostLimit)
-            .map((post) => <PostCardPreview post={post} />)
-        }
-      </div>
-      <Button href={"/project"} class="space-btn-filled mt-8">
-        View All Projects <ArrowRight class="w-5 h-5 fill-current ml-4" />
-      </Button>
+
+  <StatsStrip posts={allPosts} />
+
+  <div class="mt-12 w-full">
+    <TechMarquee posts={allPosts} />
+  </div>
+
+  <section class="page-content text-center!">
+    <h2 class="sigmar-ff text-balance pt-0!">Recent Projects</h2>
+    <p class="kanit-light text-balance">Yang terbaru dari meja kerja.</p>
+    <div
+      class="grid grid-cols-1 gap-6 text-left sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    >
+      {
+        allPosts
+          .slice(0, siteConfig.recentPostLimit)
+          .map((post) => <ProjectCard post={post} />)
+      }
     </div>
+    <Button href={"/project"} class="space-btn-filled mt-8">
+      View All Projects <ArrowRight class="w-5 h-5 fill-current ml-4" />
+    </Button>
+  </section>
+
+  <section class="page-content text-center!">
+    <h2 class="sigmar-ff text-balance pt-0!">Perjalanan</h2>
+    <p class="kanit-light text-balance mb-10!">
+      Beberapa titik penting sejak project pertama.
+    </p>
+    <CareerTimeline />
+  </section>
+
+  <div class="my-12 w-full">
+    <HalopikSection />
+  </div>
+
+  <div class="my-16 w-full px-4">
+    <ContactCta />
   </div>
 </MainLayout>

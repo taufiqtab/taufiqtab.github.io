@@ -121,7 +121,7 @@ const siteConfig: SiteConfig = {
         // },
         {
             text: 'Instagram',
-            href: 'https://instagram.com/'
+            href: 'https://instagram.com/taufiqtab'
         },
         {
             text: 'X/Twitter',
@@ -172,7 +172,7 @@ const siteConfig: SiteConfig = {
     //     formUrl: '#'
     // },
     postsPerPage: 12,
-    recentPostLimit: 3
+    recentPostLimit: 4
 };
 
 export default siteConfig;

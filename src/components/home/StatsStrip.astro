@@ -1,0 +1,32 @@
+---
+// Headline numbers, all derived from the projects collection.
+import type { CollectionEntry } from "astro:content";
+import { getAllTags } from "../../utils/helpers";
+
+type Props = { posts: CollectionEntry<"blogs">[] };
+const { posts } = Astro.props;
+
+const firstYear = Math.min(...posts.map((p) => new Date(p.data.pubDate).getFullYear()));
+const stats = [
+  { value: `${new Date().getFullYear() - firstYear}+`, label: "Tahun berkarya" },
+  { value: posts.length, label: "Project" },
+  { value: getAllTags(posts).length, label: "Teknologi" },
+  { value: posts.filter((p) => p.data.award).length, label: "Penghargaan", icon: "🏆" },
+];
+---
+
+<section class="mx-auto grid w-full max-w-3xl grid-cols-2 gap-3 px-4 sm:grid-cols-4">
+  {
+    stats.map((s) => (
+      <div class="rounded-2xl border border-gray-500/25 bg-gray-500/5 px-4 py-5 text-center">
+        <p class="sigmar-ff mb-1! text-3xl sm:text-4xl">
+          {s.icon && <span class="mr-1 text-2xl">{s.icon}</span>}
+          {s.value}
+        </p>
+        <p class="kanit-light mb-0! text-xs tracking-widest uppercase opacity-70">
+          {s.label}
+        </p>
+      </div>
+    ))
+  }
+</section>

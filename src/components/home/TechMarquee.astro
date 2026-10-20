@@ -1,0 +1,67 @@
+---
+// Endless strip of every tag used in projects, most used first.
+import type { CollectionEntry } from "astro:content";
+import { getAllTags, getPostsByTag } from "../../utils/helpers";
+
+type Props = { posts: CollectionEntry<"blogs">[] };
+const { posts } = Astro.props;
+
+const tags = getAllTags(posts).sort(
+  (a, b) => getPostsByTag(posts, b.id).length - getPostsByTag(posts, a.id).length,
+);
+---
+
+<section class="tech-marquee relative w-full overflow-hidden py-2" aria-label="Teknologi yang dipakai">
+  <div class="tech-track flex w-max gap-3">
+    {
+      [0, 1].map((copy) => (
+        <ul class="flex shrink-0 gap-3" aria-hidden={copy === 1 ? "true" : undefined}>
+          {tags.map((tag) => (
+            <li>
+              <a
+                href={"/skill/" + tag.id}
+                tabindex={copy === 1 ? -1 : undefined}
+                class="block rounded-full border border-gray-500/30 px-4 py-1.5 text-sm whitespace-nowrap transition hover:border-space-red dark:hover:border-space-yellow"
+              >
+                {tag.name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .tech-marquee {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
+  .tech-track {
+    animation: tech-scroll 60s linear infinite;
+  }
+  .tech-marquee:hover .tech-track {
+    animation-play-state: paused;
+  }
+  /* each half is one copy of the list, so -50% (+ half the gap) loops seamlessly */
+  @keyframes tech-scroll {
+    to {
+      transform: translateX(calc(-50% - 0.375rem));
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tech-track {
+      animation: none;
+      flex-wrap: wrap;
+      width: auto;
+      justify-content: center;
+    }
+    .tech-track ul[aria-hidden] {
+      display: none;
+    }
+    .tech-track ul {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  }
+</style>
