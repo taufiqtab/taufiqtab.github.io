@@ -1,0 +1,357 @@
+---
+import TutorialLayout from "../../layouts/TutorialLayout.astro";
+import Step from "../../components/tutorial/Step.astro";
+import Figure from "../../components/tutorial/Figure.astro";
+import Callout from "../../components/tutorial/Callout.astro";
+import Cmd from "../../components/tutorial/Cmd.astro";
+import Button from "../../components/Button.astro";
+import ArrowRight from "../../icons/ArrowRight.astro";
+
+import cover from "../../assets/images/tutorial/game/gamecover.jpg";
+import alur from "../../assets/images/tutorial/game/alur.jpg";
+import promptImg from "../../assets/images/tutorial/game/prompt.jpg";
+import gameMobile from "../../assets/images/tutorial/game/game-mobile.jpg";
+import bukti from "../../assets/images/tutorial/game/bukti.jpg";
+
+const toc = [
+  { id: "cerita", text: "Game-nya seperti apa" },
+  { id: "prasyarat", text: "Prasyarat: Hermes sudah jalan" },
+  { id: "alat", text: "Alat & biaya" },
+  { id: "alur", text: "Alur kerjanya" },
+  { id: "brief", text: "Prompt #1: brief produk" },
+  { id: "visual", text: "Prompt #2: rupa dan rasa" },
+  { id: "mekanik", text: "Prompt #3: mekanik permainan" },
+  { id: "mobile", text: "Prompt #4: mobile-first" },
+  { id: "deploy", text: "Prompt #5: deploy ke domain" },
+  { id: "bukti", text: "Prompt #6: buktikan, jangan klaim" },
+  { id: "jebakan", text: "Jebakan yang aku temuin" },
+  { id: "checklist", text: "Checklist sebelum dibagikan" },
+  { id: "ide", text: "Ide game berikutnya" },
+  { id: "masalah", text: "Kalau mentok" },
+];
+
+const promptBrief = `Buat game edukasi "Cabut Gigi" buat anak-anak, akses di dentist.opik.my.id.
+
+Aturan produk:
+- 1 file index.html, canvas 2D, tanpa library dan tanpa aset luar (gambar semua
+  bentuk secara prosedural).
+- Alur main 4 langkah: bersihkan kuman → oleskan gel bius → goyang gigi → cabut.
+- Tidak ada game over. Anak tidak boleh dibuat gagal; semua aksi maju ke depan.
+- Tiap aksi ada umpan balik: kilau, bunyi, skor naik.
+
+Aturan visual:
+- Gaya soft pastel (mint, sky, lilac, pink), bentuk bulat, karakter gigi bermuka.
+- Tanpa darah, tanpa warna gelap, tanpa tulisan menakutkan.
+- Font sistem (bukan webfont CDN) supaya tetap hidup di WebView Telegram.
+
+Aturan platform:
+- Mobile-first. Tombol langkah tidak boleh menutupi area gigi.
+- Kalau layar sempit, jangan perkecil semua sampai nggak kebaca — atur ulang layout.
+
+Kalau sudah jadi, kasih tahu alamat lokalnya dan cara bukanya.`;
+
+const promptVisual = `Sekarang perbaiki rasa visualnya:
+- Karakter gigi harus punya mata, pipi merona, dan mulut yang berubah sesuai fase
+  (senyum → kaget → menyipit saat ditarik → senang).
+- Kuman dibuat seperti makhluk kecil: ada mata, alis nakal, dan halo pulsing supaya
+  kelihatan bisa diketuk.
+- Gusi dibuat lengkung dengan highlight, tambah lidah lembut di bawah.
+- Semua bayangan lembut (blur 10–40), sudut membulat besar, hindari garis tegas.
+- Tiap langkah punya warna latar beda, tapi tetap satu keluarga pastel.`;
+
+const promptMekanik = `Rapikan mekaniknya jadi state machine: clean → gel → wiggle → pull → done.
+- clean: ketuk kuman sampai habis (sisa dihitung).
+- gel: tahan gigi ±1,8 detik, ada cincin progres.
+- wiggle: akumulasi jarak geser kiri-kanan sampai ambang tertentu.
+- pull: tarik ke atas >100px, gigi meluncur keluar + ledakan kilau.
+- done: kartu hadiah, skor, tombol pasien berikutnya.
+
+Buang semua kesempatan "gagal". Kalau pemain melepas terlalu cepat, simpan progresnya,
+jangan reset.`;
+
+const promptLevel = `Level = array data {nama, jumlah kuman, ambang goyang, catatan}.
+Aku mau nambah pasien cuma dengan menambah satu baris.`;
+
+const promptMobile = `Di HP, baris tombol langkah menutupi arena gigi. Perbaiki dengan aturan ini:
+1. Stage mengisi viewport (bukan rasio tetap), pakai 100dvh dan safe-area.
+2. Kanvas logis ikut rasio stage: W=1000, H = W * tinggi/lebar, supaya tidak gepeng.
+3. Ukur tinggi HUD yang sebenarnya, lalu geser+skalakan "dunia" game ke area di
+   bawahnya. Hit-testing pointer harus dibalik transform-nya.
+4. Kalau tinggi layar < 560px, ringkas HUD (font & padding lebih kecil).
+5. Mode portrait di HP: tampilkan ajakan "putar HP", boleh dilewati.
+6. Area ketuk minimal 52px CSS walau sprite-nya kecil.
+
+Setelah itu uji di 4 ukuran: 1440x900, 844x390, 667x375, 390x844.
+Laporkan hasil ukur getBoundingClientRect tiap ukuran.`;
+
+const promptDeploy = `Deploy game ini ke dentist.opik.my.id:
+- systemd unit yang menjalankan python3 -m http.server 8240 --bind 127.0.0.1,
+  WorkingDirectory ke folder game, Restart=always.
+- Tambah ingress hostname dentist.opik.my.id → http://127.0.0.1:8240 di config
+  cloudflared (sebelum catch-all), backup config dulu, lalu reload service.
+- cloudflared tunnel route dns untuk hostname itu.
+- Verifikasi: curl status 200 DAN md5 body yang dilayani harus sama dengan file lokal.`;
+
+const promptBukti = `Uji game ini di browser headless, jangan cuma buka halamannya:
+- Klik semua kuman, tahan gigi sampai fase gel selesai, geser kiri-kanan sampai
+  ambang goyang tercapai, lalu tarik ke atas.
+- Pastikan kartu hadiah muncul dan skor bertambah. Laporkan angka skornya.
+- Screenshot tiap ukuran layar, lalu periksa: ada teks dobel? ada elemen tertutup?
+  ada yang keluar layar?
+- Uji juga mode portrait: overlay "putar HP" harus muncul.`;
+---
+
+<TutorialLayout
+  title="Bikin Game Edukasi Sendiri, Bareng AI"
+  eyebrow="Tutorial · Game Edukasi"
+  description="Game Cabut Gigi di dentist.opik.my.id itu cuma satu file index.html: HTML, CSS, dan JavaScript canvas, yang ditulis bareng AI agent Hermes lewat chat Telegram. Dari nol sampai live di domain: satu sore."
+  cover={cover}
+  coverAlt="Tampilan game Klinik Gigi Ceria di desktop: deretan gigi bermuka lucu dengan kuman hijau"
+  meta={["⏱️ ±60–90 menit", "💸 nol biaya tambahan", "🖥️ pakai VPS yang sudah ada", "🧑‍💻 Level: pemula yang sudah pernah chat bot AI"]}
+  toc={toc}
+>
+  <!-- Cerita -->
+  <section id="cerita" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Game-nya seperti apa</h2>
+    <p>
+      Game <strong>Cabut Gigi</strong> di <a href="https://dentist.opik.my.id" target="_blank" rel="noopener">dentist.opik.my.id</a> itu nggak digambar manual, nggak pakai Unity, nggak pakai game engine. Isinya <strong>satu file <code>index.html</code></strong> yang ditulis bareng AI agent Hermes lewat percakapan di Telegram.
+    </p>
+    <p>
+      Aku bikin game ini di ruang tunggu bedah mulut, sambil deg-degan nunggu nomor antrean dipanggil. Niatnya cuma satu: bikin simulasi kecil biar nggak kepikiran terus. Alhamdulillah, ternyata hasilnya bisa dimainkan juga oleh anak-anak lain.
+    </p>
+    <p>Empat langkah, tanpa tombol gagal, satu pemain satu pasien:</p>
+    <ol>
+      <li><strong>Bersihkan kuman:</strong> ketuk semua kuman di gigi.</li>
+      <li><strong>Oleskan gel bius:</strong> tahan gigi sampai meter penuh.</li>
+      <li><strong>Goyang gigi:</strong> geser kiri-kanan sampai gigi goyang.</li>
+      <li><strong>Cabut!</strong> Tarik gigi ke atas, keluar kilau bintang, skor naik.</li>
+    </ol>
+    <p>Setelah itu muncul kartu hadiah ("Dodo Senang Sekali!") dan tombol pasien berikutnya. Total 5 pasien, tiap pasien kumannya nambah.</p>
+    <Figure src={gameMobile} alt="Tiga tahap permainan di HP: bersihkan kuman, oleskan gel bius, tarik dan cabut" caption="Tiga tahap permainan di HP" />
+    <Callout type="info">
+      Yang penting dipahami di awal: <strong>ini bukan aplikasi besar</strong>. Satu file ±36 KB, nol dependency, nol request ke server luar. Buka di HP 3G pun langsung main.
+    </Callout>
+  </section>
+
+  <!-- Prasyarat -->
+  <section id="prasyarat" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Prasyarat: Hermes kamu sudah jalan</h2>
+    <p>
+      Tutorial ini <strong>lanjutan</strong> dari <a href="/tutorial/setup-hermes">Setup Kantor AI pakai Hermes, dari Nol</a>. Kalau kamu belum punya bot Hermes yang nyaut di Telegram, balik dulu ke sana. Sisanya di sini nggak akan jalan tanpa itu.
+    </p>
+    <p>Cek cepat, semua harus beres sebelum lanjut:</p>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Cek</th><th>Cara cepat</th><th>Harusnya</th></tr></thead>
+        <tbody>
+          <tr><td>Bot menjawab</td><td>Kirim "halo" ke bot Telegram kamu</td><td>Dibalas dalam hitungan detik</td></tr>
+          <tr><td>Agent bisa terminal</td><td>Minta: <em>"jalanin <code>uname -a</code> di server"</em></td><td>Dia balas hasil command-nya</td></tr>
+          <tr><td>Ada domain + Cloudflare</td><td>Cek dashboard Cloudflare kamu</td><td>Domain aktif, DNS bisa diatur</td></tr>
+          <tr><td>Agent bisa nulis file</td><td>Minta: <em>"bikin file /root/coba.txt isinya halo"</em></td><td>File benar-benar ada</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Kalau empat ini lolos, kamu sudah punya semua bahan. <strong>Nggak perlu install apa pun lagi</strong>, game-nya cuma HTML.</p>
+    <Callout type="tip">Domain belum ada? Game tetap bisa jalan pakai <code>http://IP-VPS:8240</code>. Domain cuma biar kelihatan rapi.</Callout>
+  </section>
+
+  <!-- Alat -->
+  <section id="alat" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Alat &amp; biaya</h2>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Alat</th><th>Buat apa</th><th>Biaya</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Hermes Agent</strong> di VPS</td><td>Nulis kode, playtest, deploy, verifikasi</td><td>Sudah ada dari tutorial sebelumnya</td></tr>
+          <tr><td><strong>Model AI</strong> (DeepSeek dkk.)</td><td>"Otak" yang nulis kode</td><td>±$0,02–0,05 untuk satu game seperti ini</td></tr>
+          <tr><td><code>python3 -m http.server</code></td><td>Menyajikan file statis</td><td>Gratis, sudah ada di Ubuntu</td></tr>
+          <tr><td><strong>systemd</strong></td><td>Bikin server game auto-nyala</td><td>Gratis</td></tr>
+          <tr><td><strong>Cloudflare Tunnel</strong></td><td>HTTPS + domain sendiri tanpa buka port</td><td>Gratis</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Total biaya tambahan di luar VPS: <strong>praktis nol</strong>. Yang makan biaya itu kuota token AI-nya, dan untuk satu file HTML ini nggak sampai seperempat dolar.</p>
+  </section>
+
+  <!-- Alur -->
+  <section id="alur" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Alur kerjanya</h2>
+    <p>Enam langkah, semuanya kamu lakukan sambil ngobrol. Nggak ada satu pun langkah yang mengharuskan kamu buka editor kode.</p>
+    <Figure src={alur} alt="Diagram alur dari prompt ke game live" caption="Dari prompt pertama sampai game live di domain" />
+    <Callout type="tip" title="Satu prompt = satu keputusan produk">
+      Jangan campur "bikin game" dengan "deploy ke domain" dalam satu pesan. Hasilnya susah dicek dan susah dibenerin kalau ada yang meleset.
+    </Callout>
+  </section>
+
+  <!-- Prompt 1 -->
+  <Step n="1" title="Brief produk" id="brief" time="±10 menit (agent yang kerja)">
+    <p>Ini prompt yang aku kirim pertama. Perhatikan: nggak ada satu baris pun kode di sini.</p>
+    <Figure src={promptImg} alt="Contoh prompt brief produk yang dikirim ke bot Hermes" caption="Brief produk, bukan instruksi coding" />
+    <p>Salin dan ganti bagian yang perlu:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptBrief} />
+    <p>
+      <strong>Kenapa berhasil:</strong> kamu mendefinisikan <em>produk</em> (siapa pemakainya, apa yang dilarang), bukan <em>implementasi</em>. Agent bebas memilih cara, dan biasanya pilihannya lebih rapi daripada kalau kamu maksa pakai library tertentu.
+    </p>
+    <p>
+      Setelah prompt ini, agent akan bilang sesuatu seperti: <em>"Sudah, ada di <code>/root/dentist/index.html</code>, coba buka <code>http://IP:8240</code>."</em>
+    </p>
+    <Callout type="warn">
+      Kalau dia cuma numpuk file tanpa bisa dibuka, langsung bilang: <strong>"buka sendiri di browser headless, mainkan sampai selesai, laporkan hasilnya."</strong>
+    </Callout>
+  </Step>
+
+  <!-- Prompt 2 -->
+  <Step n="2" title="Rupa dan rasa" id="visual" time="±10 menit">
+    <p>Kalau hasil pertama masih terasa kaku, hindari permintaan umum seperti "bikin lebih bagus", karena hasilnya cenderung acak. Sebut hal konkret:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptVisual} />
+    <p>Tiga hal yang paling menaikkan kualitas visual dalam game seperti ini:</p>
+    <ol>
+      <li><strong>Muka karakter berubah per fase.</strong> Murah, tapi bikin pemain merasa ada cerita.</li>
+      <li><strong>Halo + pulse pada objek yang bisa diketuk.</strong> Anak belum lancar baca; mereka butuh petunjuk visual.</li>
+      <li><strong>Partikel + bunyi tiap aksi.</strong> Ini yang bikin "kerasa" ada progres, bukan cuma gambar diam.</li>
+    </ol>
+    <Callout type="tip">Bunyi bisa dibikin tanpa file audio sama sekali: pakai WebAudio (<code>oscillator</code> + <code>gain</code>). Nol byte, nol loading, dan tetap ada tombol mute.</Callout>
+  </Step>
+
+  <!-- Prompt 3 -->
+  <Step n="3" title="Mekanik permainan" id="mekanik" time="±10 menit">
+    <p>Bagian yang paling sering bikin game terasa "setengah jadi" adalah mekaniknya. Minta agent bikin <strong>state machine eksplisit</strong>, bukan tumpukan <code>if</code>:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptMekanik} />
+    <p>Hasilnya: tiap fase punya satu tugas, gampang di-debug, gampang ditambah level.</p>
+    <p>Level jangan ditulis sebagai kode per level. Minta jadi <strong>tabel data</strong>:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptLevel} />
+  </Step>
+
+  <!-- Prompt 4 -->
+  <Step n="4" title="Mobile-first" id="mobile" time="±15 menit">
+    <p>
+      Ini kesalahan paling nyata yang aku alami di versi pertama. Di HP landscape, baris tombol langkah <strong>menutupi gigi-giginya</strong>. Bukan bug CSS, tapi karena HUD-nya di-overlay di atas canvas dengan ukuran tetap.
+    </p>
+    <p>Prompt perbaikannya:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptMobile} />
+    <Callout type="warn">Sebagai pemilik produk: <strong>jangan percaya "sudah responsif"</strong> sebelum agent menyebut angka. Minta dia melaporkan hasil ukur, bukan opini.</Callout>
+  </Step>
+
+  <!-- Prompt 5 -->
+  <Step n="5" title="Deploy ke domain sendiri" id="deploy" time="±10 menit + nunggu DNS">
+    <p>Di tutorial Hermes, Cloudflare Tunnel sudah dipakai untuk dashboard. Polanya sama persis untuk game statis:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptDeploy} />
+    <p>Dua hal kecil yang sering kelewat:</p>
+    <ul>
+      <li><strong>Backup config dulu.</strong> Satu salah indentasi, semua subdomain kamu mati bareng.</li>
+      <li><strong>Cek md5, bukan cuma status 200.</strong> 200 bisa berarti Cloudflare menyajikan versi lama dari cache.</li>
+    </ul>
+  </Step>
+
+  <!-- Prompt 6 -->
+  <Step n="6" title="Buktikan, jangan cuma klaim" id="bukti" time="±5 menit">
+    <p>Ini bagian yang membedakan "kelihatan jadi" dan "jadi". Minta agent <strong>memainkan sendiri</strong> game-nya:</p>
+    <Cmd label="chat ke bot Telegram" lang="text" code={promptBukti} />
+    <Figure src={bukti} alt="Terminal VPS: service active, HTTP 200, md5 file publik sama dengan file lokal, playtest headless lolos dengan skor 13" caption="Hasil pengecekan: service aktif, HTTP 200, md5 sama, playtest lolos" />
+    <p>Kalau agent bilang "sudah jadi" tanpa angka seperti di atas, minta dicek ulang. Ini bagian dari kebiasaan kerja yang baik.</p>
+  </Step>
+
+  <!-- Jebakan -->
+  <section id="jebakan" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Jebakan yang aku temuin</h2>
+    <p>Semua poin di bawah ini benar-benar kejadian di proyek ini, bukan daftar teori.</p>
+    <ol>
+      <li>
+        <strong><code>shadowBlur = 0</code> bukan berarti bayangan mati.</strong> <code>shadowColor</code> dan <code>shadowOffsetY</code> masih aktif, jadi teks berikutnya tergambar dua kali dengan offset tajam, kelihatan seperti "teks dobel". Obatnya: set <code>shadowColor = 'transparent'</code> dan <code>shadowOffsetY = 0</code> setiap selesai menggambar bentuk berbayang.
+      </li>
+      <li>
+        <strong>HUD overlay menutupi arena di layar pendek.</strong> Di layar 844×390, tinggi HUD 96px itu seperempat layar. Solusinya bukan mengecilkan game, tapi mengukur HUD lalu menggeser dunia game ke area di bawahnya (lihat <a href="#mobile">Prompt #4</a>).
+      </li>
+      <li>
+        <strong>Rasio stage tetap bikin gambar terpotong.</strong> <code>width: min(100%, 1000px)</code> + <code>aspect-ratio</code> bikin tinggi melebihi layar di jendela pendek. Ganti ke <code>height: min(100dvh - 16px, 860px)</code> dan biarkan kanvas logis ikut rasio.
+      </li>
+      <li>
+        <strong>Portrait bikin teks jadi 7 piksel.</strong> Game 16:10 di layar 390px cuma setinggi ±240px. Jangan dipaksa; tampilkan ajakan putar HP, dengan tombol "tetap main di sini" buat yang tetap ingin main dalam posisi portrait.
+      </li>
+      <li>
+        <strong>Hit-testing sprite yang diputar.</strong> Balik rotasinya dulu baru uji kotak; kalau pakai jarak lingkaran, sudut sprite nggak akan pernah kena sentuhan.
+      </li>
+      <li>
+        <strong>Target ketuk anak ≠ target ketuk orang dewasa.</strong> Kuman 12px kelihatan lucu, tapi mustahil diketuk jari anak. Pasang radius minimal 52px CSS di logika hit-test, walau gambarnya kecil.
+      </li>
+      <li>
+        <strong><code>setPointerCapture</code> melempar error untuk pointer sintetis.</strong> Kalau nggak dibungkus <code>try/catch</code>, seluruh handler <code>pointerdown</code> mati, dan playtest otomatis jadi mustahil.
+      </li>
+      <li>
+        <strong>Screenshot game masih ada overlay-nya.</strong> Pernah aku ambil screenshot buat mockup, ternyata yang kerekam justru layar "Putar HP-mu ya". Selalu cek screenshot sebelum dipakai di materi promosi.
+      </li>
+      <li>
+        <strong>Emoji di canvas belum tentu ada.</strong> Di perangkat tanpa font emoji, ikon jadi kotak kosong. Jangan bergantung pada emoji untuk makna penting; pakai bentuk/path, emoji cuma hiasan.
+      </li>
+      <li>
+        <strong>Tag versi itu wajib.</strong> Tulis <code>v1.0.0 · domain</code> di footer. Waktu revisi jadi <code>v1.0.1</code>, dst. Kamu akan sering lupa versi mana yang sudah dibagikan.
+      </li>
+    </ol>
+  </section>
+
+  <!-- Checklist -->
+  <section id="checklist" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Checklist sebelum dibagikan</h2>
+    <ul>
+      <li>☐ Bisa dibuka di HP tanpa zoom, tombol nggak nutupin apa pun</li>
+      <li>☐ Bisa main sampai selesai tanpa mentok (tes 5 pasien)</li>
+      <li>☐ Ada bunyi, ada tombol mute (jangan maksa audio nyala)</li>
+      <li>☐ Ada ajakan putar HP untuk portrait</li>
+      <li>☐ Skor dan progres tersimpan selama sesi</li>
+      <li>☐ <code>systemctl is-enabled</code> = <code>enabled</code> (auto nyala setelah reboot)</li>
+      <li>☐ <code>curl</code> ke domain = 200, dan md5 file publik = file lokal</li>
+      <li>☐ Tag versi di footer</li>
+      <li>☐ Screenshot bersih buat materi promosi (tanpa UI browser, tanpa overlay)</li>
+    </ul>
+  </section>
+
+  <!-- Ide -->
+  <section id="ide" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Ide game berikutnya</h2>
+    <p>Pola yang sama (satu file, state machine, pastel, tanpa gagal) bisa dipakai untuk banyak tema edukasi:</p>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Ide</th><th>Mekanik inti</th><th>Cocok untuk</th></tr></thead>
+        <tbody>
+          <tr><td>Cuci Tangan</td><td>urutan 6 langkah benar</td><td>PAUD</td></tr>
+          <tr><td>Pisah Sampah</td><td>drag item ke 3 tong</td><td>SD kelas awal</td></tr>
+          <tr><td>Simulasi Antrean</td><td>atur urutan loket</td><td>SMP</td></tr>
+          <tr><td>Hemat Listrik</td><td>matikan alat yang boros</td><td>keluarga</td></tr>
+          <tr><td>Sikat Gigi 2 Menit</td><td>timer + sapuan area</td><td>anak &amp; orang tua</td></tr>
+          <tr><td>Safety Riding</td><td>pilih tindakan aman</td><td>remaja</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <Callout type="info">Yang bikin game edukasi berhasil bukan grafiknya, tapi <strong>satu kalimat pelajaran</strong> yang keluar di akhir. Di game ini: <em>"gigi berlubang jangan didiamkan"</em>.</Callout>
+  </section>
+
+  <!-- Troubleshooting -->
+  <section id="masalah" class="scroll-mt-28">
+    <h2 class="sigmar-ff">Kalau mentok</h2>
+    <div class="tut-table">
+      <table>
+        <thead><tr><th>Gejala</th><th>Coba ini</th></tr></thead>
+        <tbody>
+          <tr><td>Game nggak muncul, cuma halaman putih</td><td>Minta agent cek console error di headless browser, bukan nebak.</td></tr>
+          <tr><td>Perubahan nggak kelihatan</td><td>Tanya "kamu edit file yang dilayani server atau file lain?", lalu minta cek md5.</td></tr>
+          <tr><td>Domain error 1033 / 404</td><td>Tunnel putus atau ingress belum dimuat; cek <code>systemctl status cloudflared</code>.</td></tr>
+          <tr><td>Hasil AI melenceng jauh</td><td>Balik ke brief produk. Biasanya masalahnya bukan kode, tapi spesifikasi yang kabur.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Yang aku pelajari dari proyek ini: <strong>bikin produk itu sekarang soal kejelasan brief, bukan kecepatan ngetik.</strong> Kodenya memang ditulis oleh AI, tapi keputusan produknya (buat siapa, gayanya apa, apa yang dihindari, ukuran layar apa yang harus jalan) tetap perlu dipikirkan oleh kita. Aku sendiri masih terus belajar di bagian ini.
+    </p>
+    <p>
+      Kalau kamu bikin game pakai cara ini, tag <a href="https://instagram.com/taufiqtab" target="_blank" rel="noopener">@taufiqtab</a> di Instagram, aku senang sekali bisa ikut lihat dan belajar dari hasilnya 🙌
+    </p>
+    <div class="flex flex-wrap gap-3 mt-4">
+      <Button href="/tutorial/setup-hermes" class="space-btn-filled">
+        Sebelumnya: Setup Kantor AI pakai Hermes <ArrowRight class="w-5 h-5 fill-current ml-3" />
+      </Button>
+      <Button href="/tutorial/bikin-animasi-halopik" class="space-btn-outlined">
+        Lihat juga: bikin animasi Halopik <ArrowRight class="w-5 h-5 fill-current ml-3" />
+      </Button>
+    </div>
+  </section>
+</TutorialLayout>
