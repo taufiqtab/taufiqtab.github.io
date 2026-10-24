@@ -40,7 +40,6 @@ const { page } = Astro.props;
 
     pagination.hidden = true;
     loader.classList.remove("hidden");
-    let loading = false;
 
     const finish = () => {
       loader.textContent = "✨ Semua sudah ditampilkan";
@@ -48,10 +47,13 @@ const { page } = Astro.props;
     };
 
     const loadNext = async () => {
+      // init can run more than once for the same grid (initial load +
+      // swup:page:view), so the lock lives on the element, not in this closure
+      if (!grid.isConnected) return;
       const next = grid.dataset.next;
       if (!next) return finish();
-      if (loading) return;
-      loading = true;
+      if (grid.dataset.loading) return;
+      grid.dataset.loading = "1";
       loader.textContent = "Memuat lainnya…";
       try {
         const res = await fetch(next);
@@ -59,6 +61,8 @@ const { page } = Astro.props;
         const doc = new DOMParser().parseFromString(await res.text(), "text/html");
         const nextGrid = doc.getElementById("infinite-grid");
         if (!nextGrid) throw new Error("grid not found");
+        // another run already appended this page
+        if (grid.dataset.next !== next) return;
         grid.append(...Array.from(nextGrid.children));
         grid.dataset.next = nextGrid.dataset.next ?? "";
         loader.textContent = "";
@@ -73,7 +77,7 @@ const { page } = Astro.props;
         pagination.hidden = false;
         observer?.disconnect();
       } finally {
-        loading = false;
+        delete grid.dataset.loading;
       }
     };
 
