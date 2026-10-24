@@ -149,7 +149,7 @@ const siteConfig: SiteConfig = {
     },
     about: {
         title: 'About',
-        text: 'Saya adalah Software Engineer yang memiliki pengalaman dalam aplikasi web full-stack PHP, Laravel, CodeIgniter, Node.js, Golang, Rust, JavaScript, React.js, Vue.js, dan pengembangan mobile (Flutter). ikut serta dalam proyek ERP, IoT berbasis MQTT, Augmented Reality dan Game Development dengan Unity3D. Fokus saya adalah solusi berkualitas, efisien, dan berdampak. 🚀',
+        text: 'Saya adalah Software Engineer yang memiliki pengalaman dalam aplikasi web full-stack PHP, Laravel, CodeIgniter, Node.js, Golang, Rust, JavaScript, React.js, Vue.js, dan pengembangan mobile (Native Kotlin & Flutter). ikut serta dalam proyek ERP, IoT berbasis MQTT, Augmented Reality dan Game Development dengan Unity3D. Fokus saya adalah solusi berkualitas, efisien, dan berdampak. 🚀',
     },
     contactInfo: {
         title: 'Mari Berdiskusi',
